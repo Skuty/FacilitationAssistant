@@ -7,6 +7,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FacilitationAssistant.Web", "src\FacilitationAssistant.Web\FacilitationAssistant.Web.csproj", "{521AE9A8-F7D4-4079-842B-C662AC940A79}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FacilitationAssistant.Core", "src\FacilitationAssistant.Core\FacilitationAssistant.Core.csproj", "{877E052D-FD7F-4DE2-8688-69DD68EB58FC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FacilitationAssistant.Infrastructure", "src\FacilitationAssistant.Infrastructure\FacilitationAssistant.Infrastructure.csproj", "{28C77868-40AA-4264-A2C3-17F58BDA058A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,12 +21,22 @@ Global
 		{521AE9A8-F7D4-4079-842B-C662AC940A79}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{521AE9A8-F7D4-4079-842B-C662AC940A79}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{521AE9A8-F7D4-4079-842B-C662AC940A79}.Release|Any CPU.Build.0 = Release|Any CPU
+		{877E052D-FD7F-4DE2-8688-69DD68EB58FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{877E052D-FD7F-4DE2-8688-69DD68EB58FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{877E052D-FD7F-4DE2-8688-69DD68EB58FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{877E052D-FD7F-4DE2-8688-69DD68EB58FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28C77868-40AA-4264-A2C3-17F58BDA058A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28C77868-40AA-4264-A2C3-17F58BDA058A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28C77868-40AA-4264-A2C3-17F58BDA058A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28C77868-40AA-4264-A2C3-17F58BDA058A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{521AE9A8-F7D4-4079-842B-C662AC940A79} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{877E052D-FD7F-4DE2-8688-69DD68EB58FC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{28C77868-40AA-4264-A2C3-17F58BDA058A} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4C995E00-B9C3-40C9-AE10-AC31A8AA63E8}
