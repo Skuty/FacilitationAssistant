@@ -76,12 +76,15 @@ We will adhere to a **Clean Architecture** approach, simplified for a single hos
 
 ### 4.1. Persistence & State Management
 *   **Source of Truth:** The Database is the ultimate source of truth.
+*   **DbContext Scoping (CRITICAL):** Because Blazor Server circuits are long-lived, we **cannot** inject a Scoped `DbContext` directly into components or long-living services.
+    *   We will use `IDbContextFactory<AppDbContext>` to create short-lived Contexts for each Command/Query Unit of Work.
+    *   MediatR handlers will wrap their logic in `using var context = _factory.CreateDbContext();`.
 *   **State Propagation:** We will use **MediatR** for all state-changing actions.
     1.  User Action (UI) -> Sends Command (MediatR).
-    2.  Handler loads Aggregate from DB -> Modifies Domain Entity -> Saves to DB.
+    2.  Handler loads Aggregate from DB (using short-lived context) -> Modifies Domain Entity -> Saves to DB.
     3.  Handler publishes `MeetingUpdatedNotification`.
     4.  `MeetingHub` subscribes to notification -> Pushes updated state DTO to all connected clients via SignalR.
-*   **Why?** This ensures that if the server crashes, the state is safe. It also simplifies the "Split Brain" problem by serializing writes through the DB context (optimistic concurrency can be used if needed, but likely overkill for <50 users).
+*   **Why?** This prevents concurrency exceptions typical in Blazor Server when multiple components share the same Scoped Context on the same circuit.
 
 ### 4.2. Authentication (No-Auth)
 *   **Facilitator:** Identified by a unique `Guid` (FacilitatorKey) generated at meeting creation. This key is stored in the URL (or LocalStorage if we want persistence across closing tabs).
@@ -90,8 +93,10 @@ We will adhere to a **Clean Architecture** approach, simplified for a single hos
 
 ### 4.3. Real-Time (SignalR)
 *   **Group Management:** SignalR Groups will be used per meeting. `Groups.AddToGroupAsync(Context.ConnectionId, meetingId)`.
-*   **Updates:** We will prefer sending **State Snapshots** (or partial diffs) rather than granular events (e.g., "TimerStarted") to avoid "missed event" issues.
-    *   *Correction:* For timers, we send `StageStartedAt` (UTC timestamp). The client calculates "Time Remaining" locally. *Never stream "5...4...3..." seconds from the server.*
+*   **Public State (Push):** The Public Meeting State (Current Stage, Timer, Public Chat, Poll Results) is pushed to *all* clients via SignalR whenever it changes.
+    *   *Timer Strategy:* Send `StageStartedAt` (UTC timestamp). Clients calculate "Time Remaining" locally. *Never stream countdown seconds.*
+*   **Private Data (Pull):** Private Notes are **NOT** included in the public SignalR payload to prevent data leaks.
+    *   *Mechanism:* Clients fetch their private notes via a separate MediatR Query (`GetMyNotesQuery`) on initialization or when they receive a generic `NotesUpdated` notification.
 
 ## 5. Core Interfaces (Draft)
 
@@ -107,6 +112,12 @@ public class Meeting : AggregateRoot
     
     private readonly List<AgendaStage> _stages = new();
     public IReadOnlyCollection<AgendaStage> Stages => _stages.AsReadOnly();
+
+    private readonly List<Attendee> _attendees = new();
+    public IReadOnlyCollection<Attendee> Attendees => _attendees.AsReadOnly();
+
+    private readonly List<Message> _messages = new();
+    public IReadOnlyCollection<Message> Messages => _messages.AsReadOnly();
     
     public MeetingState State { get; private set; } // NotStarted, InProgress, Completed
 
@@ -114,6 +125,33 @@ public class Meeting : AggregateRoot
     public void StartStage(Guid stageId, IDateTimeProvider clock) { ... }
     public void CompleteCurrentStage(IDateTimeProvider clock) { ... }
     public void AddPoll(Poll poll) { ... }
+    public void RegenerateFacilitatorKey() => FacilitatorKey = Guid.NewGuid();
+}
+
+public class Attendee
+{
+    public string SessionId { get; private set; } 
+    public string DisplayName { get; private set; }
+    public DateTime JoinTime { get; private set; }
+}
+
+public class Note
+{
+    public Guid Id { get; private set; }    
+    public string Content { get; private set; }
+    public bool IsPrivate { get; private set; }
+    public string OwnerSessionId { get; private set; } // Only owner sees this if private
+    public Guid? LinkedStageId { get; private set; }
+}
+Guid Id { get; private set; } // Critical for client-side "New Message" tracking
+    public string Content { get; private set; }
+    public DateTime Timestamp { get; private set; }
+    public MessageType Type { get; private set; } // Announcement, Question
+    public bool IsClosed { get; private set; } // For "Close Message" feature
+    public string Content { get; private set; }
+    public DateTime Timestamp { get; private set; }
+    public MessageType Type { get; private set; } // Announcement, Question
+    public string SenderName { get; private set; }
 }
 ```
 

@@ -26,12 +26,12 @@ Facilitators need to broadcast important information to all attendees during mee
 - **AC4**: Given I select "Predefined Answers", When I define options, Then I can add 2-6 answer options (each max 100 chars)
 - **AC5**: Given I complete the message, When I click "Send", Then all attendees receive it within 2 seconds
 
-### Message Display (Attendee - Notification)
+### Message Display (Attendee - Immediate View)
 
-- **AC6**: Given a facilitator sends a message, When I am viewing the interface, Then I see a notification banner at top/bottom of screen with message preview (first 100 chars)
-- **AC7**: Given a notification appears, When I click on it, Then the full message opens in a modal or expanded panel
-- **AC8**: Given a notification is displayed, When I do not interact with it for 10 seconds, Then it auto-dismisses and moves to message history
-- **AC9**: Given multiple messages are sent quickly, When I view notifications, Then they queue and display one at a time (FIFO)
+- **AC6**: Given a facilitator sends a message, When I am viewing the interface, Then the full message immediately appears in a dialog or prominent overlay (no click required)
+- **AC7**: Given the message is displayed, When I interact with the response options or click dismiss, Then the message overlay closes
+- **AC8**: Given a message is displayed, When I do not interact with it, Then it remains visible until I dismiss it (no auto-dismiss for active messages)
+- **AC9**: Given multiple messages are sent quickly, When I view messages, Then they queue and display one at a time (FIFO) - the next one appears after I close the current one
 
 ### Message Display (Full View)
 
@@ -150,18 +150,18 @@ Facilitators need to broadcast important information to all attendees during mee
    - If "Predefined Answers": Input fields for options (2-6)
    - "Send" and "Cancel" buttons
 
-### Notification Banner (Attendee)
+### Notification / Overlay (Attendee)
 
-1. **Banner Display**:
-   - Appears at top of screen (non-blocking, overlays agenda slightly)
-   - Format: "📩 New message from facilitator: [preview]" + "View" button
-   - Auto-dismiss after 10 seconds (slides up/fades out)
-   - If multiple messages: Show count "2 messages pending"
+1.  **Immediate Display**:
+   - Appears immediately as a centered modal or bottom-sheet (mobile)
+   - Non-blocking backdrop (user can still see timer/agenda behind it, but focus is on message)
+   - Format: Header "New Message", Full Text, Response Options (if any), Dismiss/Close button
+   - If multiple messages: Show "1 of 3" indicator
 
-2. **Banner Styling**:
-   - Distinct color (primary accent color)
-   - Animation: Slide down from top
-   - Close button (X) to manually dismiss
+2.  **Styling**:
+   - Distinct elevation/shadow to separate from content
+   - Animation: Pop/Fade in
+   - Close button (X) top right
 
 ### Message History Panel
 
