@@ -61,10 +61,16 @@ docs/features/
 │   ├── messaging/spec.md
 │   └── meeting-summary/spec.md
 │
-└── 📂 cross-cutting-concerns/ (6 docs) ⭐ ARCHITECTS READ THESE
+├── 📂 App Lifecycle
+│   ├── onboarding/spec.md
+│   └── user-settings/spec.md
+│
+└── 📂 cross-cutting-concerns/ (8 docs) ⭐ ARCHITECTS READ THESE
     ├── real-time-synchronization.md
     ├── attendee-identity.md
     ├── error-handling.md
+    ├── security.md
+    ├── accessibility.md
     ├── critical-analysis.md (25+ flawed assumptions)
     ├── risk-register.md (17 risks cataloged)
     └── integration-matrix.md (8 integration points)

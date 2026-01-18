@@ -126,11 +126,13 @@ Online meetings lack structure, timing awareness, and real-time feedback mechani
 - Separation of facilitator and attendee permissions
 - No sensitive data storage (optional anonymous usage)
 - Rate limiting on concern/message submission
+- **(See `cross-cutting-concerns/security.md` for Link Regeneration and Token specs)**
 
 ### Accessibility
 - WCAG 2.1 AA compliance
 - Screen reader compatibility for agenda and timing
 - High contrast mode support
+- **(See `cross-cutting-concerns/accessibility.md` for WCAG/ARIA implementation details)**
 
 ## Out of Scope (v1.0)
 
