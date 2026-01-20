@@ -1,0 +1,152 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" />
+                Raise Concerns
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Secondary">
+            Share concerns or issues that need attention
+        </MudText>
+
+        <MudTextField @bind-Value="_newConcern" 
+                      Label="Describe your concern..." 
+                      Variant="Variant.Outlined"
+                      Lines="3"
+                      Class="mb-3" />
+
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudText Typo="Typo.body2">Severity:</MudText>
+            <MudToggleGroup T="ConcernSeverity" 
+                            @bind-Value="_severity" 
+                            Color="Color.Primary"
+                            Size="Size.Small">
+                <MudToggleItem Value="@ConcernSeverity.Low">
+                    <MudText Typo="Typo.body2">Low</MudText>
+                </MudToggleItem>
+                <MudToggleItem Value="@ConcernSeverity.Medium">
+                    <MudText Typo="Typo.body2">Medium</MudText>
+                </MudToggleItem>
+                <MudToggleItem Value="@ConcernSeverity.High">
+                    <MudText Typo="Typo.body2">High</MudText>
+                </MudToggleItem>
+            </MudToggleGroup>
+        </MudStack>
+
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Warning" 
+                   FullWidth="true"
+                   StartIcon="@Icons.Material.Filled.Send"
+                   OnClick="RaiseConcern"
+                   Disabled="@(string.IsNullOrWhiteSpace(_newConcern))">
+            Submit Concern
+        </MudButton>
+
+        @if (Concerns.Any())
+        {
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Your Concerns</MudText>
+            
+            @foreach (var concern in Concerns.Where(c => c.RaisedByName == DisplayName).OrderByDescending(c => c.Id))
+            {
+                <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                    <MudCardContent Class="py-2">
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mb-1">
+                            <MudChip Size="Size.Small" 
+                                     Color="@GetSeverityColor(concern.Severity)">
+                                @concern.Severity
+                            </MudChip>
+                            <MudChip Size="Size.Small" 
+                                     Color="@GetStatusColor(concern.Status)">
+                                @concern.Status
+                            </MudChip>
+                        </MudStack>
+                        <MudText Typo="Typo.body2">@concern.Content</MudText>
+                        
+                        @if (!string.IsNullOrWhiteSpace(concern.FacilitatorResponse))
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                <MudText Typo="Typo.body2">
+                                    <strong>Facilitator Response:</strong> @concern.FacilitatorResponse
+                                </MudText>
+                            </MudAlert>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid MeetingId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string SessionId { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyCollection<ConcernDto> Concerns { get; set; } = Array.Empty<ConcernDto>();
+
+    private string _newConcern = string.Empty;
+    private ConcernSeverity _severity = ConcernSeverity.Medium;
+
+    private async Task RaiseConcern()
+    {
+        if (string.IsNullOrWhiteSpace(_newConcern))
+            return;
+
+        var result = await Mediator.Send(new RaiseConcernCommand(
+            MeetingId, 
+            _newConcern, 
+            SessionId, 
+            DisplayName, 
+            _severity));
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Concern submitted!", Severity.Success);
+            _newConcern = string.Empty;
+            _severity = ConcernSeverity.Medium;
+        }
+        else
+        {
+            Snackbar.Add($"Error: {result.Error}", Severity.Error);
+        }
+    }
+
+    private Color GetSeverityColor(ConcernSeverity severity)
+    {
+        return severity switch
+        {
+            ConcernSeverity.Low => Color.Info,
+            ConcernSeverity.Medium => Color.Warning,
+            ConcernSeverity.High => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetStatusColor(ConcernStatus status)
+    {
+        return status switch
+        {
+            ConcernStatus.Open => Color.Warning,
+            ConcernStatus.Acknowledged => Color.Info,
+            ConcernStatus.Resolved => Color.Success,
+            _ => Color.Default
+        };
+    }
+}

@@ -1,0 +1,165 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2" />
+                Agenda Control
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (MeetingState.Stages.Any())
+        {
+            <MudList>
+                @foreach (var stage in MeetingState.Stages.OrderBy(s => s.Id))
+                {
+                    var isActive = stage.Id == MeetingState.CurrentStageId;
+                    var timeRemaining = GetTimeRemaining(stage);
+                    
+                    <MudListItem>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="flex: 1;">
+                                <MudIcon Icon="@GetStageIcon(stage.Status)" 
+                                         Color="@GetStageColor(stage.Status)" />
+                                <div>
+                                    <MudText Typo="Typo.subtitle1" 
+                                             Style="@(isActive ? "font-weight: bold;" : "")">
+                                        @stage.Title
+                                    </MudText>
+                                    @if (isActive && stage.Status == StageStatus.InProgress && timeRemaining != null)
+                                    {
+                                        <MudChip Size="Size.Small" 
+                                                 Color="@(timeRemaining.Value.TotalMinutes < 1 ? Color.Error : Color.Primary)">
+                                            <MudIcon Icon="@Icons.Material.Filled.Timer" Size="Size.Small" Class="mr-1" />
+                                            @($"{(int)timeRemaining.Value.TotalMinutes}:{timeRemaining.Value.Seconds:D2}")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @stage.DurationMinutes minutes
+                                        </MudText>
+                                    }
+                                </div>
+                            </MudStack>
+                            
+                            <MudStack Row="true" Spacing="1">
+                                @if (stage.Status == StageStatus.NotStarted && MeetingState.State == MeetingState.InProgress)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" 
+                                                   Color="Color.Success"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => StartStage(stage.Id))"
+                                                   title="Start Stage" />
+                                }
+                                @if (isActive && stage.Status == StageStatus.InProgress)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Stop" 
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="CompleteCurrentStage"
+                                                   title="Complete Stage" />
+                                }
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    @if (stage != MeetingState.Stages.Last())
+                    {
+                        <MudDivider />
+                    }
+                }
+            </MudList>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No agenda stages</MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public MeetingStateDto MeetingState { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid MeetingId { get; set; }
+
+    private System.Timers.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += (s, e) => InvokeAsync(StateHasChanged);
+        _timer.Start();
+    }
+
+    private async Task StartStage(Guid stageId)
+    {
+        var result = await Mediator.Send(new StartStageCommand(MeetingId, stageId));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Stage started!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"Error: {result.Error}", Severity.Error);
+        }
+    }
+
+    private async Task CompleteCurrentStage()
+    {
+        // TODO: Create CompleteStageCommand
+        // var result = await Mediator.Send(new CompleteStageCommand(MeetingId));
+        // if (result.IsSuccess)
+        // {
+        //     Snackbar.Add("Stage completed!", Severity.Success);
+        // }
+        Snackbar.Add("Stage completion coming soon", Severity.Info);
+    }
+
+    private TimeSpan? GetTimeRemaining(AgendaStageDto stage)
+    {
+        if (stage.Status != StageStatus.InProgress || !stage.StartedAt.HasValue)
+            return null;
+
+        var elapsed = DateTime.UtcNow - stage.StartedAt.Value;
+        var duration = TimeSpan.FromMinutes(stage.DurationMinutes);
+        var remaining = duration - elapsed;
+
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private string GetStageIcon(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.NotStarted => Icons.Material.Filled.RadioButtonUnchecked,
+            StageStatus.InProgress => Icons.Material.Filled.PlayCircle,
+            StageStatus.Completed => Icons.Material.Filled.CheckCircle,
+            _ => Icons.Material.Filled.Circle
+        };
+    }
+
+    private Color GetStageColor(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.NotStarted => Color.Default,
+            StageStatus.InProgress => Color.Primary,
+            StageStatus.Completed => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

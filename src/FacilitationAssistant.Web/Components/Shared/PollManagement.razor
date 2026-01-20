@@ -1,0 +1,227 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Poll" Class="mr-2" />
+                Poll Management
+            </MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudIconButton Icon="@Icons.Material.Filled.Add" 
+                           Color="Color.Primary" 
+                           OnClick="OpenCreateDialog" />
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (MeetingState.Polls.Any())
+        {
+            @foreach (var poll in MeetingState.Polls.OrderByDescending(p => p.Id))
+            {
+                <MudCard Class="mb-3" Elevation="0" Outlined="true">
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                            <div style="flex: 1;">
+                                <MudText Typo="Typo.subtitle1">@poll.Question</MudText>
+                                <MudStack Row="true" Spacing="1" Class="mt-1">
+                                    <MudChip Size="Size.Small" Color="@GetPollStatusColor(poll.Status)">
+                                        @poll.Status
+                                    </MudChip>
+                                    <MudChip Size="Size.Small" Variant="Variant.Text">
+                                        @poll.Votes.Count votes
+                                    </MudChip>
+                                </MudStack>
+                            </div>
+                            
+                            <MudStack Row="true" Spacing="1">
+                                @if (poll.Status == PollStatus.Draft)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" 
+                                                   Color="Color.Success"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => OpenPoll(poll.Id))"
+                                                   title="Open Poll" />
+                                }
+                                @if (poll.Status == PollStatus.Open)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Stop" 
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => ClosePoll(poll.Id))"
+                                                   title="Close Poll" />
+                                }
+                            </MudStack>
+                        </MudStack>
+
+                        @if (poll.ShowResultsBeforeClose || poll.Status == PollStatus.Closed)
+                        {
+                            <MudDivider Class="my-2" />
+                            @foreach (var option in poll.Options.OrderByDescending(o => o.VoteCount))
+                            {
+                                var percentage = poll.Votes.Any() 
+                                    ? (option.VoteCount * 100.0 / poll.Votes.Count) 
+                                    : 0;
+                                
+                                <div class="mb-1">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.body2">@option.Text</MudText>
+                                        <MudText Typo="Typo.body2">@option.VoteCount (@percentage.ToString("F0")%)</MudText>
+                                    </MudStack>
+                                    <MudProgressLinear Value="@percentage" Color="Color.Primary" Size="Size.Small" />
+                                </div>
+                            }
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                No polls created yet. Click + to create one.
+            </MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+<MudDialog @bind-Visible="_showCreateDialog" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Create Poll</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_newPollQuestion" 
+                      Label="Question" 
+                      Required="true"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Options</MudText>
+        @foreach (var option in _newPollOptions)
+        {
+            <MudStack Row="true" Spacing="2" Class="mb-2">
+                <MudTextField @bind-Value="option.Text" 
+                              Label="Option text" 
+                              Variant="Variant.Outlined"
+                              Style="flex: 1;" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                               Color="Color.Error"
+                               OnClick="@(() => _newPollOptions.Remove(option))"
+                               Disabled="@(_newPollOptions.Count <= 2)" />
+            </MudStack>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Add" 
+                   Variant="Variant.Text"
+                   OnClick="@(() => _newPollOptions.Add(new PollOptionInput()))"
+                   Class="mb-3">
+            Add Option
+        </MudButton>
+
+        <MudSwitch @bind-Value="_allowMultipleVotes" 
+                   Label="Allow multiple selections"
+                   Color="Color.Primary" />
+        <MudSwitch @bind-Value="_showResultsBeforeClose" 
+                   Label="Show results before closing"
+                   Color="Color.Primary" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showCreateDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="CreatePoll"
+                   Disabled="@(string.IsNullOrWhiteSpace(_newPollQuestion) || _newPollOptions.Count < 2 || _newPollOptions.Any(o => string.IsNullOrWhiteSpace(o.Text)))">
+            Create
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public MeetingStateDto MeetingState { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid MeetingId { get; set; }
+
+    private bool _showCreateDialog = false;
+    private string _newPollQuestion = string.Empty;
+    private List<PollOptionInput> _newPollOptions = new();
+    private bool _allowMultipleVotes = false;
+    private bool _showResultsBeforeClose = true;
+
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private void OpenCreateDialog()
+    {
+        _newPollQuestion = string.Empty;
+        _newPollOptions = new List<PollOptionInput>
+        {
+            new PollOptionInput(),
+            new PollOptionInput()
+        };
+        _allowMultipleVotes = false;
+        _showResultsBeforeClose = true;
+        _showCreateDialog = true;
+    }
+
+    private async Task CreatePoll()
+    {
+        var options = _newPollOptions.Select(o => o.Text).ToList();
+        var command = new CreatePollCommand(
+            MeetingId, 
+            _newPollQuestion, 
+            options, 
+            _allowMultipleVotes, 
+            _showResultsBeforeClose);
+        
+        var result = await Mediator.Send(command);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Poll created!", Severity.Success);
+            _showCreateDialog = false;
+        }
+        else
+        {
+            Snackbar.Add($"Error: {result.Error}", Severity.Error);
+        }
+    }
+
+    private async Task OpenPoll(Guid pollId)
+    {
+        var result = await Mediator.Send(new OpenPollCommand(MeetingId, pollId));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Poll opened!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"Error: {result.Error}", Severity.Error);
+        }
+    }
+
+    private async Task ClosePoll(Guid pollId)
+    {
+        // TODO: Implement ClosePollCommand
+        Snackbar.Add("Close poll not yet implemented", Severity.Info);
+    }
+
+    private Color GetPollStatusColor(PollStatus status)
+    {
+        return status switch
+        {
+            PollStatus.Draft => Color.Default,
+            PollStatus.Open => Color.Success,
+            PollStatus.Closed => Color.Secondary,
+            _ => Color.Default
+        };
+    }
+
+    private class PollOptionInput
+    {
+        public string Text { get; set; } = string.Empty;
+    }
+}

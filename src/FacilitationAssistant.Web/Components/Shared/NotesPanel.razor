@@ -1,0 +1,161 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Application.Queries
+@using MediatR
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Notes" Class="mr-2" />
+                Notes
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="_newNote" 
+                      Label="Add a note..." 
+                      Variant="Variant.Outlined"
+                      Lines="3"
+                      Class="mb-2" />
+        
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudSwitch @bind-Value="_isPrivate" 
+                       Label="Private (only you can see)" 
+                       Color="Color.Primary" />
+            
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="AddNote"
+                       Disabled="@(string.IsNullOrWhiteSpace(_newNote))">
+                Add Note
+            </MudButton>
+        </MudStack>
+
+        <MudDivider Class="mb-3" />
+
+        @if (_myNotes.Any())
+        {
+            <MudTabs Elevation="0" Rounded="true" Color="Color.Primary">
+                <MudTabPanel Text="My Notes" Icon="@Icons.Material.Filled.Person">
+                    @foreach (var note in _myNotes.OrderByDescending(n => n.CreatedAt))
+                    {
+                        <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                            <MudCardContent Class="py-2">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                                    <div style="flex: 1;">
+                                        <MudText Typo="Typo.body2">@note.Content</MudText>
+                                        <MudStack Row="true" Spacing="1" Class="mt-1">
+                                            <MudChip Size="Size.Small" 
+                                                     Variant="Variant.Text"
+                                                     Icon="@(note.IsPrivate ? Icons.Material.Filled.Lock : Icons.Material.Filled.Public)">
+                                                @(note.IsPrivate ? "Private" : "Public")
+                                            </MudChip>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @note.CreatedAt.ToLocalTime().ToString("MMM d, HH:mm")
+                                            </MudText>
+                                        </MudStack>
+                                    </div>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                </MudTabPanel>
+                
+                @if (_publicNotes.Any())
+                {
+                    <MudTabPanel Text="Public Notes" Icon="@Icons.Material.Filled.Public">
+                        @foreach (var note in _publicNotes.OrderByDescending(n => n.CreatedAt))
+                        {
+                            <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                                <MudCardContent Class="py-2">
+                                    <MudText Typo="Typo.body2">@note.Content</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @note.OwnerName - @note.CreatedAt.ToLocalTime().ToString("MMM d, HH:mm")
+                                    </MudText>
+                                </MudCardContent>
+                            </MudCard>
+                        }
+                    </MudTabPanel>
+                }
+            </MudTabs>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                No notes yet. Add your first note above.
+            </MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid MeetingId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string SessionId { get; set; } = string.Empty;
+
+    [Parameter]
+    public Guid? CurrentStageId { get; set; }
+
+    private string _newNote = string.Empty;
+    private bool _isPrivate = false;
+    private List<NoteDto> _myNotes = new();
+    private List<NoteDto> _publicNotes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotes();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadNotes();
+    }
+
+    private async Task LoadNotes()
+    {
+        try
+        {
+            var myNotes = await Mediator.Send(new GetMyNotesQuery(MeetingId, SessionId));
+            if (myNotes != null)
+            {
+                _myNotes = myNotes;
+                _publicNotes = myNotes.Where(n => !n.IsPrivate).ToList();
+            }
+        }
+        catch
+        {
+            // Silently fail on load
+        }
+    }
+
+    private async Task AddNote()
+    {
+        if (string.IsNullOrWhiteSpace(_newNote))
+            return;
+
+        var result = await Mediator.Send(new AddNoteCommand(
+            MeetingId, 
+            _newNote, 
+            SessionId, 
+            _isPrivate, 
+            CurrentStageId));
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Note added!", Severity.Success);
+            _newNote = string.Empty;
+            _isPrivate = false;
+            await LoadNotes();
+        }
+        else
+        {
+            Snackbar.Add($"Error: {result.Error}", Severity.Error);
+        }
+    }
+}

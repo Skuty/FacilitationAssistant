@@ -1,0 +1,205 @@
+@page "/facilitate/{MeetingId:guid}"
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Application.Queries
+@using FacilitationAssistant.Core.Application.DTOs
+@using MediatR
+@using Microsoft.AspNetCore.SignalR.Client
+@using FacilitationAssistant.Core.Domain.Enums
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@implements IAsyncDisposable
+
+<PageTitle>Facilitate: @(_meetingState?.Title ?? "Meeting")</PageTitle>
+
+@if (_meetingState == null)
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <MudPaper Class="pa-6 mt-8">
+            <MudProgressCircular Indeterminate="true" Class="mx-auto d-block mb-3" />
+            <MudText Typo="Typo.h6" Align="Align.Center">Loading meeting...</MudText>
+        </MudPaper>
+    </MudContainer>
+}
+else if (!_isValidFacilitator)
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <MudPaper Class="pa-6 mt-8">
+            <MudAlert Severity="Severity.Error">Invalid facilitator key</MudAlert>
+        </MudPaper>
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge">
+        <!-- Header -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <div>
+                    <MudText Typo="Typo.h4">@_meetingState.Title</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Meeting ID: @MeetingId | 
+                        <MudChip Size="Size.Small" Color="GetStateColor(_meetingState.State)">@_meetingState.State</MudChip>
+                    </MudText>
+                </div>
+                <MudStack Row="true" Spacing="2">
+                    @if (_meetingState.State == MeetingState.NotStarted)
+                    {
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Success" 
+                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   OnClick="StartMeeting">
+                            Start Meeting
+                        </MudButton>
+                    }
+                    else if (_meetingState.State == MeetingState.InProgress)
+                    {
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Error" 
+                                   StartIcon="@Icons.Material.Filled.Stop"
+                                   OnClick="CompleteMeeting">
+                            End Meeting
+                        </MudButton>
+                    }
+                    <MudButton Variant="Variant.Outlined" 
+                               StartIcon="@Icons.Material.Filled.Share"
+                               OnClick="CopyJoinLink">
+                        Share Link
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <!-- Agenda Controls -->
+                <FacilitatorAgendaControl MeetingState="_meetingState" MeetingId="@MeetingId" />
+                
+                <!-- Poll Management -->
+                <PollManagement MeetingState="_meetingState" MeetingId="@MeetingId" />
+                
+                <!-- Messages -->
+                <MessagingPanel MeetingState="_meetingState" SessionId="facilitator" DisplayName="Facilitator" MeetingId="@MeetingId" IsFacilitator="true" />
+            </MudItem>
+            
+            <MudItem xs="12" md="4">
+                <!-- Attendees -->
+                <AttendeesPanel Attendees="_meetingState.Attendees" />
+                
+                <!-- Concerns Management -->
+                <FacilitatorConcernsPanel MeetingId="@MeetingId" Concerns="_meetingState.Concerns" />
+                
+                <!-- Public Notes -->
+                <MudCard Class="mt-4">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Public Notes</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (_meetingState.PublicNotes.Any())
+                        {
+                            @foreach (var note in _meetingState.PublicNotes.OrderByDescending(n => n.CreatedAt))
+                            {
+                                <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                                    <MudCardContent Class="py-2">
+                                        <MudText Typo="Typo.body2">@note.Content</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @note.OwnerName - @note.CreatedAt.ToLocalTime().ToString("HH:mm")
+                                        </MudText>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">No public notes yet</MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+}
+
+@code {
+    [Parameter]
+    public Guid MeetingId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "key")]
+    public Guid? FacilitatorKey { get; set; }
+
+    private HubConnection? _hubConnection;
+    private MeetingStateDto? _meetingState;
+    private bool _isValidFacilitator = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/meetingHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<MeetingStateDto>("ReceiveState", (state) =>
+        {
+            _meetingState = state;
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+        await _hubConnection.SendAsync("JoinMeeting", MeetingId);
+
+        // Validate facilitator key
+        if (FacilitatorKey.HasValue)
+        {
+            // TODO: Add validation command
+            _isValidFacilitator = true; // For now, assume valid
+        }
+    }
+
+    private async Task StartMeeting()
+    {
+        var result = await Mediator.Send(new StartMeetingCommand(MeetingId));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Meeting started!", Severity.Success);
+        }
+    }
+
+    private async Task CompleteMeeting()
+    {
+        // TODO: Add confirmation dialog
+        // var result = await Mediator.Send(new CompleteMeetingCommand(MeetingId));
+        // if (result.IsSuccess)
+        // {
+        //     Snackbar.Add("Meeting completed!", Severity.Success);
+        // }
+    }
+
+    private void CopyJoinLink()
+    {
+        var joinLink = Navigation.ToAbsoluteUri($"/join/{MeetingId}").ToString();
+        // TODO: Copy to clipboard using JS Interop
+        Snackbar.Add($"Join link: {joinLink}", Severity.Info);
+    }
+
+    private Color GetStateColor(MeetingState state)
+    {
+        return state switch
+        {
+            MeetingState.NotStarted => Color.Default,
+            MeetingState.InProgress => Color.Success,
+            MeetingState.Completed => Color.Secondary,
+            _ => Color.Default
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.SendAsync("LeaveMeeting", MeetingId);
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,68 @@
+@using FacilitationAssistant.Core.Application.DTOs
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />
+                Attendees (@Attendees.Count)
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (Attendees.Any())
+        {
+            <MudList Dense="true">
+                @foreach (var attendee in Attendees.OrderBy(a => a.JoinTime))
+                {
+                    <MudListItem>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">
+                                @GetInitials(attendee.DisplayName)
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body2">@attendee.DisplayName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    Joined @GetRelativeTime(attendee.JoinTime)
+                                </MudText>
+                            </div>
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                No attendees yet
+            </MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyCollection<AttendeeDto> Attendees { get; set; } = Array.Empty<AttendeeDto>();
+
+    private string GetInitials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return parts.Length > 0 ? parts[0][0].ToString().ToUpper() : "?";
+    }
+
+    private string GetRelativeTime(DateTime joinTime)
+    {
+        var elapsed = DateTime.UtcNow - joinTime;
+        
+        if (elapsed.TotalMinutes < 1)
+            return "just now";
+        if (elapsed.TotalMinutes < 60)
+            return $"{(int)elapsed.TotalMinutes} min ago";
+        if (elapsed.TotalHours < 24)
+            return $"{(int)elapsed.TotalHours} hours ago";
+        
+        return joinTime.ToLocalTime().ToString("MMM d");
+    }
+}

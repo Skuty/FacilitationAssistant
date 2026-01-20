@@ -1,0 +1,177 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" />
+                Concerns (@Concerns.Count(c => c.Status != ConcernStatus.Resolved))
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent Style="max-height: 400px; overflow-y: auto;">
+        @if (Concerns.Any())
+        {
+            @foreach (var concern in Concerns.OrderBy(c => c.Status).ThenByDescending(c => c.Severity))
+            {
+                <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                    <MudCardContent Class="py-2">
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mb-1">
+                            <MudChip Size="Size.Small" 
+                                     Color="@GetSeverityColor(concern.Severity)">
+                                @concern.Severity
+                            </MudChip>
+                            <MudChip Size="Size.Small" 
+                                     Color="@GetStatusColor(concern.Status)">
+                                @concern.Status
+                            </MudChip>
+                            @if (!string.IsNullOrWhiteSpace(concern.RaisedByName))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    - @concern.RaisedByName
+                                </MudText>
+                            }
+                        </MudStack>
+                        
+                        <MudText Typo="Typo.body2" Class="mb-2">@concern.Content</MudText>
+                        
+                        @if (!string.IsNullOrWhiteSpace(concern.FacilitatorResponse))
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                                <MudText Typo="Typo.body2">@concern.FacilitatorResponse</MudText>
+                            </MudAlert>
+                        }
+
+                        @if (concern.Status != ConcernStatus.Resolved)
+                        {
+                            <MudStack Row="true" Spacing="1">
+                                @if (concern.Status == ConcernStatus.Open)
+                                {
+                                    <MudButton Size="Size.Small" 
+                                               Variant="Variant.Text"
+                                               Color="Color.Info"
+                                               OnClick="@(() => AcknowledgeConcern(concern.Id))">
+                                        Acknowledge
+                                    </MudButton>
+                                }
+                                <MudButton Size="Size.Small" 
+                                           Variant="Variant.Text"
+                                           Color="Color.Default"
+                                           OnClick="@(() => OpenResponseDialog(concern))">
+                                    Respond
+                                </MudButton>
+                                <MudButton Size="Size.Small" 
+                                           Variant="Variant.Text"
+                                           Color="Color.Success"
+                                           OnClick="@(() => ResolveConcern(concern.Id))">
+                                    Resolve
+                                </MudButton>
+                            </MudStack>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                No concerns raised
+            </MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+<MudDialog @bind-Visible="_showResponseDialog" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Respond to Concern</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_selectedConcern != null)
+        {
+            <MudText Typo="Typo.body2" Class="mb-3">
+                <strong>Concern:</strong> @_selectedConcern.Content
+            </MudText>
+        }
+        <MudTextField @bind-Value="_response" 
+                      Label="Your response" 
+                      Lines="3"
+                      Variant="Variant.Outlined" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showResponseDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="SubmitResponse">
+            Send Response
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid MeetingId { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyCollection<ConcernDto> Concerns { get; set; } = Array.Empty<ConcernDto>();
+
+    private bool _showResponseDialog = false;
+    private ConcernDto? _selectedConcern;
+    private string _response = string.Empty;
+
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private void OpenResponseDialog(ConcernDto concern)
+    {
+        _selectedConcern = concern;
+        _response = concern.FacilitatorResponse ?? string.Empty;
+        _showResponseDialog = true;
+    }
+
+    private async Task SubmitResponse()
+    {
+        if (_selectedConcern == null || string.IsNullOrWhiteSpace(_response))
+            return;
+
+        // TODO: Implement RespondToConcernCommand
+        Snackbar.Add("Respond to concern not yet implemented", Severity.Info);
+        _showResponseDialog = false;
+    }
+
+    private async Task AcknowledgeConcern(Guid concernId)
+    {
+        // TODO: Implement AcknowledgeConcernCommand
+        Snackbar.Add("Acknowledge concern not yet implemented", Severity.Info);
+    }
+
+    private async Task ResolveConcern(Guid concernId)
+    {
+        // TODO: Implement ResolveConcernCommand
+        Snackbar.Add("Resolve concern not yet implemented", Severity.Info);
+    }
+
+    private Color GetSeverityColor(ConcernSeverity severity)
+    {
+        return severity switch
+        {
+            ConcernSeverity.Low => Color.Info,
+            ConcernSeverity.Medium => Color.Warning,
+            ConcernSeverity.High => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetStatusColor(ConcernStatus status)
+    {
+        return status switch
+        {
+            ConcernStatus.Open => Color.Warning,
+            ConcernStatus.Acknowledged => Color.Info,
+            ConcernStatus.Resolved => Color.Success,
+            _ => Color.Default
+        };
+    }
+}

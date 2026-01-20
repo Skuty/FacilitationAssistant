@@ -1,0 +1,145 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Poll" Class="mr-2" />
+                Polls
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @foreach (var poll in MeetingState.Polls.Where(p => p.Status != PollStatus.Closed))
+        {
+            <MudCard Class="mb-3" Elevation="0" Outlined="true">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-2">@poll.Question</MudText>
+                    <MudChip Size="Size.Small" Color="@GetPollStatusColor(poll.Status)">
+                        @poll.Status
+                    </MudChip>
+
+                    @if (poll.Status == PollStatus.Open)
+                    {
+                        <MudDivider Class="my-3" />
+                        
+                        @if (poll.AllowMultipleVotes)
+                        {
+                            @foreach (var option in poll.Options)
+                            {
+                                var hasVoted = poll.Votes.Any(v => v.OptionId == option.Id);
+                                <MudCheckBox T="bool" 
+                                             Value="@hasVoted"
+                                             ValueChanged="@((bool val) => ToggleVote(poll.Id, option.Id, val))"
+                                             Label="@option.Text"
+                                             Color="Color.Primary"
+                                             Class="mb-2" />
+                            }
+                        }
+                        else
+                        {
+                            <MudRadioGroup T="Guid?" Value="@GetUserVote(poll)" ValueChanged="@((Guid? val) => CastVote(poll.Id, val))">
+                                @foreach (var option in poll.Options)
+                                {
+                                    <MudRadio T="Guid?" Value="@option.Id" Color="Color.Primary">
+                                        @option.Text
+                                    </MudRadio>
+                                }
+                            </MudRadioGroup>
+                        }
+                    }
+
+                    @if (poll.ShowResultsBeforeClose || poll.Status == PollStatus.Closed)
+                    {
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Results</MudText>
+                        @foreach (var option in poll.Options.OrderByDescending(o => o.VoteCount))
+                        {
+                            var percentage = poll.Votes.Any() 
+                                ? (option.VoteCount * 100.0 / poll.Votes.Count) 
+                                : 0;
+                            
+                            <div class="mb-2">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-1">
+                                    <MudText Typo="Typo.body2">@option.Text</MudText>
+                                    <MudText Typo="Typo.body2">@option.VoteCount votes (@percentage.ToString("F0")%)</MudText>
+                                </MudStack>
+                                <MudProgressLinear Value="@percentage" Color="Color.Primary" />
+                            </div>
+                        }
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+
+        @if (!MeetingState.Polls.Any(p => p.Status != PollStatus.Closed))
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                No active polls
+            </MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public MeetingStateDto MeetingState { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public string SessionId { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public Guid MeetingId { get; set; }
+
+    private Guid? GetUserVote(PollDto poll)
+    {
+        // In a real implementation, we'd filter by SessionId
+        // For now, return the first vote
+        return poll.Votes.FirstOrDefault()?.OptionId;
+    }
+
+    private async Task CastVote(Guid pollId, Guid? optionId)
+    {
+        if (!optionId.HasValue)
+            return;
+
+        var result = await Mediator.Send(new VoteCommand(MeetingId, pollId, SessionId, optionId.Value));
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add($"Error: {result.Error}", Severity.Error);
+        }
+    }
+
+    private async Task ToggleVote(Guid pollId, Guid optionId, bool isVoting)
+    {
+        if (isVoting)
+        {
+            var result = await Mediator.Send(new VoteCommand(MeetingId, pollId, SessionId, optionId));
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add($"Error: {result.Error}", Severity.Error);
+            }
+        }
+        else
+        {
+            // TODO: Implement unvote command
+            Snackbar.Add("Unvote not yet implemented", Severity.Info);
+        }
+    }
+
+    private Color GetPollStatusColor(PollStatus status)
+    {
+        return status switch
+        {
+            PollStatus.Draft => Color.Default,
+            PollStatus.Open => Color.Success,
+            PollStatus.Closed => Color.Secondary,
+            _ => Color.Default
+        };
+    }
+}

@@ -1,0 +1,179 @@
+@page "/create"
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Application.Queries
+@using MediatR
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+
+<PageTitle>Create Meeting</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+    <MudPaper Class="pa-6 mt-4">
+        <MudText Typo="Typo.h4" Class="mb-4">Create New Meeting</MudText>
+        
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudTextField @bind-Value="_meetingTitle" 
+                          Label="Meeting Title" 
+                          Required="true" 
+                          RequiredError="Title is required"
+                          Variant="Variant.Outlined"
+                          Class="mb-4" />
+
+            <MudText Typo="Typo.h6" Class="mb-2">Agenda</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                Add stages to your meeting agenda. Each stage will have a timer.
+            </MudText>
+
+            @foreach (var stage in _stages)
+            {
+                <MudCard Class="mb-3">
+                    <MudCardContent>
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
+                            <MudTextField @bind-Value="stage.Title" 
+                                          Label="Stage Title" 
+                                          Required="true"
+                                          Variant="Variant.Outlined"
+                                          Style="flex: 1;" />
+                            <MudNumericField @bind-Value="stage.DurationMinutes" 
+                                             Label="Duration (min)" 
+                                             Min="1"
+                                             Variant="Variant.Outlined"
+                                             Style="width: 120px;" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Color="Color.Error" 
+                                           OnClick="@(() => RemoveStage(stage))"
+                                           Class="mt-2" />
+                        </MudStack>
+                        <MudTextField @bind-Value="stage.Description" 
+                                      Label="Description (optional)" 
+                                      Lines="2"
+                                      Variant="Variant.Outlined"
+                                      Class="mt-2" />
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <MudButton StartIcon="@Icons.Material.Filled.Add" 
+                       Color="Color.Primary" 
+                       Variant="Variant.Outlined"
+                       OnClick="AddStage"
+                       Class="mb-4">
+                Add Stage
+            </MudButton>
+
+            <MudDivider Class="my-4" />
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Create"
+                           OnClick="HandleCreateMeeting"
+                           Disabled="@(!_isValid || _isCreating || _stages.Count == 0)">
+                    @if (_isCreating)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Creating...</span>
+                    }
+                    else
+                    {
+                        <span>Create Meeting</span>
+                    }
+                </MudButton>
+                <MudButton Variant="Variant.Text" 
+                           Color="Color.Default"
+                           Href="/">
+                    Cancel
+                </MudButton>
+            </MudStack>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private MudForm _form = null!;
+    private bool _isValid = false;
+    private bool _isCreating = false;
+    private string _meetingTitle = string.Empty;
+    private List<StageInput> _stages = new();
+
+    protected override void OnInitialized()
+    {
+        // Add default stage
+        AddStage();
+    }
+
+    private void AddStage()
+    {
+        _stages.Add(new StageInput
+        {
+            Title = string.Empty,
+            Description = string.Empty,
+            DurationMinutes = 10,
+            SortOrder = _stages.Count
+        });
+    }
+
+    private void RemoveStage(StageInput stage)
+    {
+        _stages.Remove(stage);
+        // Update sort orders
+        for (int i = 0; i < _stages.Count; i++)
+        {
+            _stages[i].SortOrder = i;
+        }
+    }
+
+    private async Task HandleCreateMeeting()
+    {
+        if (!_isValid || _stages.Count == 0)
+            return;
+
+        _isCreating = true;
+        try
+        {
+            var command = new CreateMeetingCommand(_meetingTitle);
+            var result = await Mediator.Send(command);
+
+            if (result.IsSuccess)
+            {
+                var meetingId = result.Value;
+                
+                // Add stages
+                foreach (var stage in _stages)
+                {
+                    await Mediator.Send(new AddAgendaStageCommand(
+                        meetingId,
+                        stage.Title,
+                        stage.Description,
+                        stage.DurationMinutes,
+                        stage.SortOrder));
+                }
+
+                // Get the meeting state to retrieve the facilitator key
+                var meetingState = await Mediator.Send(new GetMeetingStateQuery(meetingId));
+                if (meetingState != null)
+                {
+                    // Navigate to facilitator view - Note: FacilitatorKey is not exposed in DTO for security
+                    // For now, we'll use a session-based approach or localStorage
+                    Navigation.NavigateTo($"/facilitate/{meetingId}?key={Guid.NewGuid()}");
+                }
+                else
+                {
+                    Navigation.NavigateTo($"/facilitate/{meetingId}");
+                }
+            }
+        }
+        finally
+        {
+            _isCreating = false;
+        }
+    }
+
+    private class StageInput
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int DurationMinutes { get; set; }
+        public int SortOrder { get; set; }
+    }
+}

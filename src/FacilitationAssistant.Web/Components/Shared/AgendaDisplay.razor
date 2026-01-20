@@ -1,0 +1,120 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Domain.Enums
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2" />
+                Agenda
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (MeetingState.Stages.Any())
+        {
+            <MudList>
+                @foreach (var stage in MeetingState.Stages.OrderBy(s => s.Id))
+                {
+                    var isActive = stage.Id == MeetingState.CurrentStageId;
+                    var timeRemaining = GetTimeRemaining(stage);
+                    
+                    <MudListItem Class="@(isActive ? "mud-primary-hover" : "")">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@GetStageIcon(stage.Status)" 
+                                     Color="@GetStageColor(stage.Status)" />
+                            <div style="flex: 1;">
+                                <MudText Typo="Typo.subtitle1" 
+                                         Style="@(isActive ? "font-weight: bold;" : "")">
+                                    @stage.Title
+                                </MudText>
+                                @if (!string.IsNullOrWhiteSpace(stage.Description))
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        @stage.Description
+                                    </MudText>
+                                }
+                                <MudStack Row="true" Spacing="1" Class="mt-1">
+                                    <MudChip Size="Size.Small" Variant="Variant.Text">
+                                        @stage.DurationMinutes min
+                                    </MudChip>
+                                    @if (isActive && stage.Status == StageStatus.InProgress)
+                                    {
+                                        <MudChip Size="Size.Small" 
+                                                 Color="@(timeRemaining != null && timeRemaining.Value.TotalMinutes < 1 ? Color.Error : Color.Primary)">
+                                            @(timeRemaining != null ? $"{(int)timeRemaining.Value.TotalMinutes}:{timeRemaining.Value.Seconds:D2}" : "Starting...")
+                                        </MudChip>
+                                    }
+                                </MudStack>
+                            </div>
+                        </MudStack>
+                    </MudListItem>
+                    @if (stage != MeetingState.Stages.Last())
+                    {
+                        <MudDivider />
+                    }
+                }
+            </MudList>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No agenda stages</MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public MeetingStateDto MeetingState { get; set; } = null!;
+
+    [Parameter]
+    public bool IsFacilitator { get; set; }
+
+    private System.Timers.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += (s, e) => InvokeAsync(StateHasChanged);
+        _timer.Start();
+    }
+
+    private TimeSpan? GetTimeRemaining(AgendaStageDto stage)
+    {
+        if (stage.Status != StageStatus.InProgress || !stage.StartedAt.HasValue)
+            return null;
+
+        var elapsed = DateTime.UtcNow - stage.StartedAt.Value;
+        var duration = TimeSpan.FromMinutes(stage.DurationMinutes);
+        var remaining = duration - elapsed;
+
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private string GetStageIcon(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.NotStarted => Icons.Material.Filled.RadioButtonUnchecked,
+            StageStatus.InProgress => Icons.Material.Filled.PlayCircle,
+            StageStatus.Completed => Icons.Material.Filled.CheckCircle,
+            _ => Icons.Material.Filled.Circle
+        };
+    }
+
+    private Color GetStageColor(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.NotStarted => Color.Default,
+            StageStatus.InProgress => Color.Primary,
+            StageStatus.Completed => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

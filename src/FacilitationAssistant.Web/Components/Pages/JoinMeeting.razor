@@ -1,0 +1,151 @@
+@page "/join/{MeetingId:guid}"
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Application.Queries
+@using FacilitationAssistant.Core.Application.DTOs
+@using MediatR
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<PageTitle>Join Meeting</PageTitle>
+
+@if (!_hasJoined)
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <MudPaper Class="pa-6 mt-8">
+            <MudText Typo="Typo.h4" Class="mb-4" Align="Align.Center">Join Meeting</MudText>
+            <MudTextField @bind-Value="_displayName" 
+                          Label="Your Name" 
+                          Required="true"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          @onkeyup="@HandleKeyPress" />
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       FullWidth="true"
+                       Disabled="@(string.IsNullOrWhiteSpace(_displayName) || _isJoining)"
+                       OnClick="HandleJoinMeeting">
+                @if (_isJoining)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Joining...</span>
+                }
+                else
+                {
+                    <span>Join Meeting</span>
+                }
+            </MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+else if (_meetingState == null)
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <MudPaper Class="pa-6 mt-8">
+            <MudProgressCircular Indeterminate="true" Class="mx-auto d-block mb-3" />
+            <MudText Typo="Typo.h6" Align="Align.Center">Loading meeting...</MudText>
+        </MudPaper>
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge">
+        <MudText Typo="Typo.h3" Class="mb-4">@_meetingState.Title</MudText>
+        
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <!-- Agenda Section -->
+                <AgendaDisplay MeetingState="_meetingState" IsFacilitator="false" />
+                
+                <!-- Polls Section -->
+                @if (_meetingState.Polls.Any(p => p.Status != FacilitationAssistant.Core.Domain.Enums.PollStatus.Closed))
+                {
+                    <PollsDisplay MeetingState="_meetingState" SessionId="@_sessionId" MeetingId="@MeetingId" />
+                }
+                
+                <!-- Messaging Section -->
+                <MessagingPanel MeetingState="_meetingState" SessionId="@_sessionId" DisplayName="@_displayName" MeetingId="@MeetingId" />
+            </MudItem>
+            
+            <MudItem xs="12" md="4">
+                <!-- Attendees -->
+                <AttendeesPanel Attendees="_meetingState.Attendees" />
+                
+                <!-- Notes -->
+                <NotesPanel MeetingId="@MeetingId" SessionId="@_sessionId" CurrentStageId="_meetingState.CurrentStageId" />
+                
+                <!-- Concerns -->
+                <ConcernsPanel MeetingId="@MeetingId" SessionId="@_sessionId" DisplayName="@_displayName" Concerns="_meetingState.Concerns" />
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+}
+
+@code {
+    [Parameter]
+    public Guid MeetingId { get; set; }
+
+    private HubConnection? _hubConnection;
+    private string _displayName = string.Empty;
+    private string _sessionId = Guid.NewGuid().ToString();
+    private bool _hasJoined = false;
+    private bool _isJoining = false;
+    private MeetingStateDto? _meetingState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/meetingHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<MeetingStateDto>("ReceiveState", (state) =>
+        {
+            _meetingState = state;
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_displayName))
+        {
+            await HandleJoinMeeting();
+        }
+    }
+
+    private async Task HandleJoinMeeting()
+    {
+        if (string.IsNullOrWhiteSpace(_displayName))
+            return;
+
+        _isJoining = true;
+        try
+        {
+            var command = new JoinMeetingCommand(MeetingId, _sessionId, _displayName);
+            var result = await Mediator.Send(command);
+
+            if (result.IsSuccess)
+            {
+                _hasJoined = true;
+                await _hubConnection!.SendAsync("JoinMeeting", MeetingId);
+            }
+        }
+        finally
+        {
+            _isJoining = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.SendAsync("LeaveMeeting", MeetingId);
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

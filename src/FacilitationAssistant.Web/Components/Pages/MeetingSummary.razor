@@ -1,0 +1,318 @@
+@page "/summary/{MeetingId:guid}"
+@using FacilitationAssistant.Core.Application.Queries
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+
+<PageTitle>Meeting Summary</PageTitle>
+
+@if (_meetingState == null)
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <MudPaper Class="pa-6 mt-8">
+            <MudProgressCircular Indeterminate="true" Class="mx-auto d-block mb-3" />
+            <MudText Typo="Typo.h6" Align="Align.Center">Loading summary...</MudText>
+        </MudPaper>
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Large">
+        <!-- Header -->
+        <MudPaper Class="pa-6 mb-4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.h3">@_meetingState.Title</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">
+                        Meeting Summary
+                    </MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportSummary">
+                    Export
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <!-- Meeting Info -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
+                        <MudChip Color="@GetStateColor(_meetingState.State)">
+                            @_meetingState.State
+                        </MudChip>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Started</MudText>
+                        <MudText Typo="Typo.body1">
+                            @(_meetingState.StartedAt?.ToLocalTime().ToString("MMM d, yyyy HH:mm") ?? "Not started")
+                        </MudText>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Attendees</MudText>
+                        <MudText Typo="Typo.body1">@_meetingState.Attendees.Count</MudText>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Duration</MudText>
+                        <MudText Typo="Typo.body1">
+                            @GetTotalDuration() minutes
+                        </MudText>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Agenda Summary -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-3">Agenda</MudText>
+            <MudTimeline TimelineOrientation="TimelineOrientation.Vertical">
+                @foreach (var stage in _meetingState.Stages.OrderBy(s => s.Id))
+                {
+                    <MudTimelineItem Color="@GetStageColor(stage.Status)" Size="Size.Small">
+                        <ItemContent>
+                            <MudCard Elevation="0" Outlined="true">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.h6">@stage.Title</MudText>
+                                    @if (!string.IsNullOrWhiteSpace(stage.Description))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                                            @stage.Description
+                                        </MudText>
+                                    }
+                                    <MudStack Row="true" Spacing="1">
+                                        <MudChip Size="Size.Small" Variant="Variant.Text">
+                                            @stage.DurationMinutes minutes planned
+                                        </MudChip>
+                                        @if (stage.Status == StageStatus.Completed && stage.StartedAt.HasValue && stage.CompletedAt.HasValue)
+                                        {
+                                            var actualDuration = (stage.CompletedAt.Value - stage.StartedAt.Value).TotalMinutes;
+                                            <MudChip Size="Size.Small" 
+                                                     Color="@(actualDuration > stage.DurationMinutes ? Color.Warning : Color.Success)">
+                                                @actualDuration.ToString("F0") minutes actual
+                                            </MudChip>
+                                        }
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudCard>
+                        </ItemContent>
+                    </MudTimelineItem>
+                }
+            </MudTimeline>
+        </MudPaper>
+
+        <!-- Poll Results -->
+        @if (_meetingState.Polls.Any())
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudText Typo="Typo.h5" Class="mb-3">Poll Results</MudText>
+                @foreach (var poll in _meetingState.Polls)
+                {
+                    <MudCard Class="mb-3" Elevation="0" Outlined="true">
+                        <MudCardContent>
+                            <MudText Typo="Typo.h6" Class="mb-2">@poll.Question</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                Total votes: @poll.Votes.Count
+                            </MudText>
+                            
+                            @foreach (var option in poll.Options.OrderByDescending(o => o.VoteCount))
+                            {
+                                var percentage = poll.Votes.Any() 
+                                    ? (option.VoteCount * 100.0 / poll.Votes.Count) 
+                                    : 0;
+                                
+                                <div class="mb-2">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-1">
+                                        <MudText Typo="Typo.body1">@option.Text</MudText>
+                                        <MudText Typo="Typo.body1">
+                                            @option.VoteCount (@percentage.ToString("F1")%)
+                                        </MudText>
+                                    </MudStack>
+                                    <MudProgressLinear Value="@percentage" Color="Color.Primary" />
+                                </div>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudPaper>
+        }
+
+        <!-- Questions & Messages -->
+        @if (_meetingState.Messages.Any())
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudText Typo="Typo.h5" Class="mb-3">Questions & Messages</MudText>
+                @foreach (var message in _meetingState.Messages.OrderBy(m => m.Timestamp))
+                {
+                    <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                        <MudCardContent Class="py-2">
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mb-1">
+                                <MudChip Size="Size.Small" 
+                                         Color="@GetMessageTypeColor(message.Type)"
+                                         Variant="Variant.Text">
+                                    @message.Type
+                                </MudChip>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @message.SenderName - @message.Timestamp.ToLocalTime().ToString("HH:mm")
+                                </MudText>
+                                @if (message.IsClosed)
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Success">Resolved</MudChip>
+                                }
+                            </MudStack>
+                            <MudText Typo="Typo.body2">@message.Content</MudText>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudPaper>
+        }
+
+        <!-- Concerns -->
+        @if (_meetingState.Concerns.Any())
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudText Typo="Typo.h5" Class="mb-3">Concerns Raised</MudText>
+                @foreach (var concern in _meetingState.Concerns)
+                {
+                    <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                        <MudCardContent Class="py-2">
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mb-1">
+                                <MudChip Size="Size.Small" Color="@GetSeverityColor(concern.Severity)">
+                                    @concern.Severity
+                                </MudChip>
+                                <MudChip Size="Size.Small" Color="@GetConcernStatusColor(concern.Status)">
+                                    @concern.Status
+                                </MudChip>
+                            </MudStack>
+                            <MudText Typo="Typo.body2" Class="mb-1">@concern.Content</MudText>
+                            @if (!string.IsNullOrWhiteSpace(concern.FacilitatorResponse))
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true">
+                                    <strong>Response:</strong> @concern.FacilitatorResponse
+                                </MudAlert>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudPaper>
+        }
+
+        <!-- Public Notes -->
+        @if (_meetingState.PublicNotes.Any())
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudText Typo="Typo.h5" Class="mb-3">Public Notes</MudText>
+                @foreach (var note in _meetingState.PublicNotes.OrderBy(n => n.CreatedAt))
+                {
+                    <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                        <MudCardContent Class="py-2">
+                            <MudText Typo="Typo.body2">@note.Content</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @note.OwnerName - @note.CreatedAt.ToLocalTime().ToString("MMM d, HH:mm")
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudPaper>
+        }
+
+        <!-- Attendees List -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-3">Attendees (@_meetingState.Attendees.Count)</MudText>
+            <MudChipSet>
+                @foreach (var attendee in _meetingState.Attendees.OrderBy(a => a.DisplayName))
+                {
+                    <MudChip>@attendee.DisplayName</MudChip>
+                }
+            </MudChipSet>
+        </MudPaper>
+    </MudContainer>
+}
+
+@code {
+    [Parameter]
+    public Guid MeetingId { get; set; }
+
+    private MeetingStateDto? _meetingState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _meetingState = await Mediator.Send(new GetMeetingStateQuery(MeetingId));
+    }
+
+    private int GetTotalDuration()
+    {
+        return _meetingState?.Stages.Sum(s => s.DurationMinutes) ?? 0;
+    }
+
+    private void ExportSummary()
+    {
+        // TODO: Implement export functionality
+        // Could export as PDF, Word, or Markdown
+    }
+
+    private Color GetStateColor(MeetingState state)
+    {
+        return state switch
+        {
+            MeetingState.NotStarted => Color.Default,
+            MeetingState.InProgress => Color.Success,
+            MeetingState.Completed => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetStageColor(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.NotStarted => Color.Default,
+            StageStatus.InProgress => Color.Primary,
+            StageStatus.Completed => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetMessageTypeColor(MessageType type)
+    {
+        return type switch
+        {
+            MessageType.Announcement => Color.Info,
+            MessageType.Question => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetSeverityColor(ConcernSeverity severity)
+    {
+        return severity switch
+        {
+            ConcernSeverity.Low => Color.Info,
+            ConcernSeverity.Medium => Color.Warning,
+            ConcernSeverity.High => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetConcernStatusColor(ConcernStatus status)
+    {
+        return status switch
+        {
+            ConcernStatus.Open => Color.Warning,
+            ConcernStatus.Acknowledged => Color.Info,
+            ConcernStatus.Resolved => Color.Success,
+            _ => Color.Default
+        };
+    }
+}

@@ -1,7 +1,82 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Facilitation Assistant</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudPaper Class="pa-8" Elevation="3">
+        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-4">
+            Welcome to Facilitation Assistant
+        </MudText>
+        <MudText Typo="Typo.body1" Align="Align.Center" Class="mb-6" Color="Color.Secondary">
+            Streamline your meetings with real-time collaboration tools
+        </MudText>
 
-Welcome to your new app.
+        <MudStack Spacing="4">
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       Size="Size.Large"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Href="/create">
+                Create New Meeting
+            </MudButton>
+
+            <MudDivider />
+
+            <MudText Typo="Typo.h6" Class="mt-2">Join Existing Meeting</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Enter the meeting link provided by your facilitator
+            </MudText>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-6 mt-6" Elevation="1">
+        <MudText Typo="Typo.h6" Class="mb-3">Features</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudStack Row="true" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Primary" />
+                    <div>
+                        <MudText Typo="Typo.subtitle2">Timed Agenda</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Keep meetings on track
+                        </MudText>
+                    </div>
+                </MudStack>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudStack Row="true" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Poll" Color="Color.Primary" />
+                    <div>
+                        <MudText Typo="Typo.subtitle2">Live Polling</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Gather instant feedback
+                        </MudText>
+                    </div>
+                </MudStack>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudStack Row="true" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Chat" Color="Color.Primary" />
+                    <div>
+                        <MudText Typo="Typo.subtitle2">Q&A System</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Manage questions efficiently
+                        </MudText>
+                    </div>
+                </MudStack>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudStack Row="true" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Notes" Color="Color.Primary" />
+                    <div>
+                        <MudText Typo="Typo.subtitle2">Collaborative Notes</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Take notes together
+                        </MudText>
+                    </div>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>

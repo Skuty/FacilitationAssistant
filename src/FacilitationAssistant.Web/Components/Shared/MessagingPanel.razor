@@ -1,0 +1,158 @@
+@using FacilitationAssistant.Core.Application.DTOs
+@using FacilitationAssistant.Core.Application.Commands
+@using FacilitationAssistant.Core.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Chat" Class="mr-2" />
+                Messages & Q&A
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent Style="max-height: 500px; overflow-y: auto;">
+        @if (MeetingState.Messages.Any())
+        {
+            @foreach (var message in MeetingState.Messages.OrderBy(m => m.Timestamp))
+            {
+                if (!message.IsClosed)
+                {
+                    <MudCard Class="mb-2" Elevation="0" Outlined="true">
+                        <MudCardContent Class="py-2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                                <div style="flex: 1;">
+                                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mb-1">
+                                        <MudChip Size="Size.Small" 
+                                                 Color="@GetMessageTypeColor(message.Type)"
+                                                 Variant="Variant.Text">
+                                            @message.Type
+                                        </MudChip>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @message.SenderName - @message.Timestamp.ToLocalTime().ToString("HH:mm")
+                                        </MudText>
+                                    </MudStack>
+                                    <MudText Typo="Typo.body2">@message.Content</MudText>
+                                </div>
+                                
+                                @if (IsFacilitator)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                                   Color="Color.Default"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => CloseMessage(message.Id))"
+                                                   title="Close/Archive" />
+                                }
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            }
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                No messages yet
+            </MudText>
+        }
+    </MudCardContent>
+    <MudCardActions>
+        <MudStack Style="width: 100%;" Spacing="2">
+            <MudTextField @bind-Value="_newMessage" 
+                          Label="Type your message..." 
+                          Variant="Variant.Outlined"
+                          Lines="2"
+                          @onkeydown="@HandleKeyPress" />
+            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                <MudToggleGroup T="MessageType" 
+                                @bind-Value="_messageType" 
+                                Color="Color.Primary"
+                                Size="Size.Small">
+                    <MudToggleItem Value="@MessageType.Announcement">
+                        <MudIcon Icon="@Icons.Material.Filled.Campaign" Size="Size.Small" />
+                    </MudToggleItem>
+                    <MudToggleItem Value="@MessageType.Question">
+                        <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Small" />
+                    </MudToggleItem>
+                </MudToggleGroup>
+                
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Send"
+                           OnClick="SendMessage"
+                           Disabled="@(string.IsNullOrWhiteSpace(_newMessage))">
+                    Send
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public MeetingStateDto MeetingState { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public string SessionId { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public Guid MeetingId { get; set; }
+
+    [Parameter]
+    public bool IsFacilitator { get; set; } = false;
+
+    private string _newMessage = string.Empty;
+    private MessageType _messageType = MessageType.Question;
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_newMessage))
+            return;
+
+        var result = await Mediator.Send(new SendMessageCommand(
+            MeetingId, 
+            _newMessage, 
+            SessionId, 
+            DisplayName, 
+            _messageType));
+
+        if (result.IsSuccess)
+        {
+            _newMessage = string.Empty;
+        }
+        else
+        {
+            Snackbar.Add($"Error: {result.Error}", Severity.Error);
+        }
+    }
+
+    private async Task CloseMessage(Guid messageId)
+    {
+        // TODO: Implement CloseMessageCommand
+        Snackbar.Add("Close message not yet implemented", Severity.Info);
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey && !string.IsNullOrWhiteSpace(_newMessage))
+        {
+            await SendMessage();
+        }
+    }
+
+    private Color GetMessageTypeColor(MessageType type)
+    {
+        return type switch
+        {
+            MessageType.Announcement => Color.Info,
+            MessageType.Question => Color.Warning,
+            _ => Color.Default
+        };
+    }
+}
