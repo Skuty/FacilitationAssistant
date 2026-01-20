@@ -62,11 +62,11 @@
                 <MudCard Class="mb-2" Elevation="0" Outlined="true">
                     <MudCardContent Class="py-2">
                         <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mb-1">
-                            <MudChip Size="Size.Small" 
+                            <MudChip T="string" Size="Size.Small" 
                                      Color="@GetSeverityColor(concern.Severity)">
                                 @concern.Severity
                             </MudChip>
-                            <MudChip Size="Size.Small" 
+                            <MudChip T="string" Size="Size.Small" 
                                      Color="@GetStatusColor(concern.Status)">
                                 @concern.Status
                             </MudChip>
@@ -114,6 +114,7 @@
             _newConcern, 
             SessionId, 
             DisplayName, 
+            false, // IsAnonymous
             _severity));
 
         if (result.IsSuccess)

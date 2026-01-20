@@ -49,7 +49,7 @@
                                     <div style="flex: 1;">
                                         <MudText Typo="Typo.body2">@note.Content</MudText>
                                         <MudStack Row="true" Spacing="1" Class="mt-1">
-                                            <MudChip Size="Size.Small" 
+                                            <MudChip T="string" Size="Size.Small" 
                                                      Variant="Variant.Text"
                                                      Icon="@(note.IsPrivate ? Icons.Material.Filled.Lock : Icons.Material.Filled.Public)">
                                                 @(note.IsPrivate ? "Private" : "Public")
@@ -99,6 +99,9 @@
     [Parameter, EditorRequired]
     public string SessionId { get; set; } = string.Empty;
 
+    [Parameter, EditorRequired]
+    public string DisplayName { get; set; } = string.Empty;
+
     [Parameter]
     public Guid? CurrentStageId { get; set; }
 
@@ -143,6 +146,7 @@
             MeetingId, 
             _newNote, 
             SessionId, 
+            DisplayName,
             _isPrivate, 
             CurrentStageId));
 

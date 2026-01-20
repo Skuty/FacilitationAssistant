@@ -39,7 +39,7 @@ else
                     <MudText Typo="Typo.h4">@_meetingState.Title</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">
                         Meeting ID: @MeetingId | 
-                        <MudChip Size="Size.Small" Color="GetStateColor(_meetingState.State)">@_meetingState.State</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="GetStateColor(_meetingState.State)">@_meetingState.State</MudChip>
                     </MudText>
                 </div>
                 <MudStack Row="true" Spacing="2">

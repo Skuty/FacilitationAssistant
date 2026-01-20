@@ -13,13 +13,13 @@
     <MudCardContent>
         @if (MeetingState.Stages.Any())
         {
-            <MudList>
+            <MudList T="string">
                 @foreach (var stage in MeetingState.Stages.OrderBy(s => s.Id))
                 {
                     var isActive = stage.Id == MeetingState.CurrentStageId;
                     var timeRemaining = GetTimeRemaining(stage);
                     
-                    <MudListItem Class="@(isActive ? "mud-primary-hover" : "")">
+                    <MudListItem T="string" Class="@(isActive ? "mud-primary-hover" : "")">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@GetStageIcon(stage.Status)" 
                                      Color="@GetStageColor(stage.Status)" />
@@ -35,12 +35,12 @@
                                     </MudText>
                                 }
                                 <MudStack Row="true" Spacing="1" Class="mt-1">
-                                    <MudChip Size="Size.Small" Variant="Variant.Text">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">
                                         @stage.DurationMinutes min
                                     </MudChip>
                                     @if (isActive && stage.Status == StageStatus.InProgress)
                                     {
-                                        <MudChip Size="Size.Small" 
+                                        <MudChip T="string" Size="Size.Small" 
                                                  Color="@(timeRemaining != null && timeRemaining.Value.TotalMinutes < 1 ? Color.Error : Color.Primary)">
                                             @(timeRemaining != null ? $"{(int)timeRemaining.Value.TotalMinutes}:{timeRemaining.Value.Seconds:D2}" : "Starting...")
                                         </MudChip>
@@ -95,7 +95,7 @@
     {
         return status switch
         {
-            StageStatus.NotStarted => Icons.Material.Filled.RadioButtonUnchecked,
+            StageStatus.Pending => Icons.Material.Filled.RadioButtonUnchecked,
             StageStatus.InProgress => Icons.Material.Filled.PlayCircle,
             StageStatus.Completed => Icons.Material.Filled.CheckCircle,
             _ => Icons.Material.Filled.Circle
@@ -106,7 +106,7 @@
     {
         return status switch
         {
-            StageStatus.NotStarted => Color.Default,
+            StageStatus.Pending => Color.Default,
             StageStatus.InProgress => Color.Primary,
             StageStatus.Completed => Color.Success,
             _ => Color.Default

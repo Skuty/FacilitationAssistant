@@ -30,10 +30,10 @@
                             <div style="flex: 1;">
                                 <MudText Typo="Typo.subtitle1">@poll.Question</MudText>
                                 <MudStack Row="true" Spacing="1" Class="mt-1">
-                                    <MudChip Size="Size.Small" Color="@GetPollStatusColor(poll.Status)">
+                                    <MudChip T="string" Size="Size.Small" Color="@GetPollStatusColor(poll.Status)">
                                         @poll.Status
                                     </MudChip>
-                                    <MudChip Size="Size.Small" Variant="Variant.Text">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">
                                         @poll.Votes.Count votes
                                     </MudChip>
                                 </MudStack>
@@ -48,7 +48,7 @@
                                                    OnClick="@(() => OpenPoll(poll.Id))"
                                                    title="Open Poll" />
                                 }
-                                @if (poll.Status == PollStatus.Open)
+                                @if (poll.Status == PollStatus.Active)
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Stop" 
                                                    Color="Color.Error"
@@ -152,6 +152,7 @@
     private List<PollOptionInput> _newPollOptions = new();
     private bool _allowMultipleVotes = false;
     private bool _showResultsBeforeClose = true;
+    private Guid? _linkedStageId = null;
 
     private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
 
@@ -174,9 +175,10 @@
         var command = new CreatePollCommand(
             MeetingId, 
             _newPollQuestion, 
-            options, 
+            _linkedStageId,
             _allowMultipleVotes, 
-            _showResultsBeforeClose);
+            _showResultsBeforeClose,
+            options);
         
         var result = await Mediator.Send(command);
         if (result.IsSuccess)
@@ -214,7 +216,7 @@
         return status switch
         {
             PollStatus.Draft => Color.Default,
-            PollStatus.Open => Color.Success,
+            PollStatus.Active => Color.Success,
             PollStatus.Closed => Color.Secondary,
             _ => Color.Default
         };

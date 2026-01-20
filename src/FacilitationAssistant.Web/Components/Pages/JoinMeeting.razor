@@ -73,7 +73,7 @@ else
                 <AttendeesPanel Attendees="_meetingState.Attendees" />
                 
                 <!-- Notes -->
-                <NotesPanel MeetingId="@MeetingId" SessionId="@_sessionId" CurrentStageId="_meetingState.CurrentStageId" />
+                <NotesPanel MeetingId="@MeetingId" SessionId="@_sessionId" DisplayName="@_displayName" CurrentStageId="_meetingState.CurrentStageId" />
                 
                 <!-- Concerns -->
                 <ConcernsPanel MeetingId="@MeetingId" SessionId="@_sessionId" DisplayName="@_displayName" Concerns="_meetingState.Concerns" />

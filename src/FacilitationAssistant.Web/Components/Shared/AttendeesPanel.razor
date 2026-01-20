@@ -12,10 +12,10 @@
     <MudCardContent>
         @if (Attendees.Any())
         {
-            <MudList Dense="true">
+            <MudList T="string" Dense="true">
                 @foreach (var attendee in Attendees.OrderBy(a => a.JoinTime))
                 {
-                    <MudListItem>
+                    <MudListItem T="string">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudAvatar Color="Color.Primary" Size="Size.Small">
                                 @GetInitials(attendee.DisplayName)
