@@ -16,6 +16,7 @@ public class Meeting
     public List<Note> Notes { get; set; } = new();
     public List<Concern> Concerns { get; set; } = new();
     public List<AttendeeSession> AttendeeSessions { get; set; } = new();
+    public List<Question> Questions { get; set; } = new();
 }
 
 public enum MeetingStatus

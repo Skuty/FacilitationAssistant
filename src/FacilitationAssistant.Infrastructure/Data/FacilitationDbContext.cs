@@ -15,6 +15,9 @@ public class FacilitationDbContext : DbContext
     public DbSet<Note> Notes { get; set; }
     public DbSet<Concern> Concerns { get; set; }
     public DbSet<AttendeeSession> AttendeeSessions { get; set; }
+    public DbSet<Question> Questions { get; set; }
+    public DbSet<QuestionOption> QuestionOptions { get; set; }
+    public DbSet<QuestionResponse> QuestionResponses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +79,43 @@ public class FacilitationDbContext : DbContext
             entity.HasOne(e => e.Meeting)
                 .WithMany(m => m.AttendeeSessions)
                 .HasForeignKey(e => e.MeetingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Question>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Text).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.ScaleMinLabel).HasMaxLength(100);
+            entity.Property(e => e.ScaleMaxLabel).HasMaxLength(100);
+            entity.HasOne(e => e.Meeting)
+                .WithMany(m => m.Questions)
+                .HasForeignKey(e => e.MeetingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.AssociatedStage)
+                .WithMany()
+                .HasForeignKey(e => e.AssociatedStageId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<QuestionOption>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OptionText).IsRequired().HasMaxLength(100);
+            entity.HasOne(e => e.Question)
+                .WithMany(q => q.Options)
+                .HasForeignKey(e => e.QuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QuestionResponse>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AttendeeSessionId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.AnswerText).HasMaxLength(1000);
+            entity.HasOne(e => e.Question)
+                .WithMany(q => q.Responses)
+                .HasForeignKey(e => e.QuestionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

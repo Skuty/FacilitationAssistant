@@ -82,7 +82,7 @@ else
         {
             <div class="row mt-4">
                 <div class="col-md-8">
-                    <div class="card">
+                    <div class="card mb-3">
                         <div class="card-header">
                             <h5>Agenda Builder</h5>
                         </div>
@@ -144,6 +144,141 @@ else
                                         <input type="number" class="form-control" placeholder="Duration (minutes)" @bind="newStageDuration" min="1" max="240" />
                                     </div>
                                     <button class="btn btn-primary btn-sm" @onclick="AddStage">Add Stage</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Question Management Section *@
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>📊 Questions & Polls</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (!questions.Any())
+                            {
+                                <div class="alert alert-info">
+                                    Add questions to gather feedback from attendees during the meeting.
+                                </div>
+                            }
+
+                            @foreach (var question in questions.OrderBy(q => q.CreatedAt))
+                            {
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6>@question.Text</h6>
+                                                <div class="d-flex gap-2 flex-wrap">
+                                                    <span class="badge bg-secondary">@question.AnswerType</span>
+                                                    <span class="badge bg-info">@question.TriggerType</span>
+                                                    <span class="badge @GetQuestionStatusBadge(question.Status)">@question.Status</span>
+                                                </div>
+                                                @if (question.Options.Any())
+                                                {
+                                                    <div class="mt-2">
+                                                        <small class="text-muted">Options: @string.Join(", ", question.Options.OrderBy(o => o.OrderIndex).Select(o => o.OptionText))</small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="card mt-3">
+                                <div class="card-body">
+                                    <h6>Add New Question</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label">Question Text</label>
+                                        <input type="text" class="form-control" placeholder="Enter your question" @bind="newQuestionText" maxlength="300" />
+                                        <small class="text-muted">@newQuestionText.Length/300 characters</small>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Answer Type</label>
+                                        <select class="form-select" @bind="newQuestionType">
+                                            <option value="@QuestionAnswerType.SingleChoice">Single Choice</option>
+                                            <option value="@QuestionAnswerType.MultipleChoice">Multiple Choice</option>
+                                            <option value="@QuestionAnswerType.FreeText">Free Text</option>
+                                            <option value="@QuestionAnswerType.Scale">Scale</option>
+                                        </select>
+                                    </div>
+                                    
+                                    @if (newQuestionType == QuestionAnswerType.SingleChoice || newQuestionType == QuestionAnswerType.MultipleChoice)
+                                    {
+                                        <div class="mb-2">
+                                            <label class="form-label">Options (@newQuestionOptions.Count/10)</label>
+                                            @foreach (var (option, index) in newQuestionOptions.Select((o, i) => (o, i)))
+                                            {
+                                                <div class="input-group mb-1">
+                                                    <input type="text" class="form-control" placeholder="Option @(index + 1)" @bind="newQuestionOptions[index]" maxlength="100" />
+                                                    <button class="btn btn-outline-danger" @onclick="() => RemoveOption(index)">✕</button>
+                                                </div>
+                                            }
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="AddOption" disabled="@(newQuestionOptions.Count >= 10)">+ Add Option</button>
+                                        </div>
+                                    }
+
+                                    @if (newQuestionType == QuestionAnswerType.Scale)
+                                    {
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Scale Min</label>
+                                                <input type="number" class="form-control" @bind="newScaleMin" min="0" max="9" />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Scale Max</label>
+                                                <input type="number" class="form-control" @bind="newScaleMax" min="1" max="10" />
+                                            </div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control" placeholder="Min Label (optional)" @bind="newScaleMinLabel" maxlength="100" />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control" placeholder="Max Label (optional)" @bind="newScaleMaxLabel" maxlength="100" />
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <div class="mb-2">
+                                        <label class="form-label">Trigger Type</label>
+                                        <select class="form-select" @bind="newQuestionTriggerType">
+                                            <option value="@QuestionTriggerType.Manual">Manual (trigger when ready)</option>
+                                            <option value="@QuestionTriggerType.MeetingStart">Automatically at meeting start</option>
+                                            <option value="@QuestionTriggerType.StageStart">Automatically at stage start</option>
+                                        </select>
+                                    </div>
+
+                                    @if (newQuestionTriggerType == QuestionTriggerType.StageStart && meeting.Stages.Any())
+                                    {
+                                        <div class="mb-2">
+                                            <label class="form-label">Associated Stage</label>
+                                            <select class="form-select" @bind="newQuestionAssociatedStageId">
+                                                <option value="">Select a stage...</option>
+                                                @foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
+                                                {
+                                                    <option value="@stage.Id">@(stage.OrderIndex + 1). @stage.Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    }
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Result Visibility</label>
+                                        <select class="form-select" @bind="newQuestionVisibility">
+                                            <option value="@QuestionResultVisibility.FacilitatorOnly">Facilitator Only</option>
+                                            <option value="@QuestionResultVisibility.AggregatedResultsToAttendees">Show Aggregated Results to Attendees</option>
+                                            <option value="@QuestionResultVisibility.AllResponsesToAttendees">Show All Responses to Attendees</option>
+                                        </select>
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(questionError))
+                                    {
+                                        <div class="alert alert-danger">@questionError</div>
+                                    }
+
+                                    <button class="btn btn-primary btn-sm" @onclick="AddQuestion">Add Question</button>
                                 </div>
                             </div>
                         </div>
@@ -247,7 +382,7 @@ else
 
                     @if (meeting.Concerns.Any(c => !c.IsDismissed))
                     {
-                        <div class="card">
+                        <div class="card mb-3">
                             <div class="card-header bg-warning">
                                 <h6 class="mb-0">⚠️ Active Concerns (@meeting.Concerns.Count(c => !c.IsDismissed))</h6>
                             </div>
@@ -266,6 +401,104 @@ else
                             </div>
                         </div>
                     }
+
+                    @* Questions Management *@
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">📊 Questions</h6>
+                        </div>
+                        <div class="card-body">
+                            @if (!questions.Any())
+                            {
+                                <p class="text-muted">No questions added yet.</p>
+                            }
+                            else
+                            {
+                                @foreach (var question in questions.OrderBy(q => q.CreatedAt))
+                                {
+                                    var results = questionResults.ContainsKey(question.Id) ? questionResults[question.Id] : null;
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="flex-grow-1">
+                                                    <h6>@question.Text</h6>
+                                                    <div class="d-flex gap-2 flex-wrap">
+                                                        <span class="badge bg-secondary">@question.AnswerType</span>
+                                                        <span class="badge @GetQuestionStatusBadge(question.Status)">@question.Status</span>
+                                                    </div>
+                                                </div>
+                                                <div class="btn-group">
+                                                    @if (question.Status == QuestionStatus.Draft)
+                                                    {
+                                                        <button class="btn btn-sm btn-success" @onclick="() => TriggerQuestion(question.Id)">
+                                                            ▶️ Trigger
+                                                        </button>
+                                                    }
+                                                    @if (question.Status == QuestionStatus.Active)
+                                                    {
+                                                        <button class="btn btn-sm btn-danger" @onclick="() => CloseQuestion(question.Id)">
+                                                            ⏹️ Close
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            @if (results != null)
+                                            {
+                                                <div class="mt-2 p-2 bg-light rounded">
+                                                    <small><strong>Responses:</strong> @results.TotalResponses | <strong>Skipped:</strong> @results.TotalSkipped | <strong>Pending:</strong> @results.TotalPending</small>
+                                                    
+                                                    @if (question.AnswerType == QuestionAnswerType.SingleChoice || question.AnswerType == QuestionAnswerType.MultipleChoice)
+                                                    {
+                                                        @if (results.ChoiceResults != null)
+                                                        {
+                                                            <div class="mt-2">
+                                                                @foreach (var option in question.Options.OrderBy(o => o.OrderIndex))
+                                                                {
+                                                                    var count = results.ChoiceResults.ContainsKey(option.Id) ? results.ChoiceResults[option.Id] : 0;
+                                                                    var percentage = results.TotalResponses > 0 ? (int)((count / (double)results.TotalResponses) * 100) : 0;
+                                                                    <div class="mb-1">
+                                                                        <small>@option.OptionText: @count (@percentage%)</small>
+                                                                        <div class="progress" style="height: 15px;">
+                                                                            <div class="progress-bar" style="width: @percentage%"></div>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    }
+                                                    else if (question.AnswerType == QuestionAnswerType.Scale && results.ScaleResults != null)
+                                                    {
+                                                        <div class="mt-2">
+                                                            <small><strong>Average:</strong> @results.ScaleResults.AverageScore.ToString("F1")</small>
+                                                        </div>
+                                                    }
+                                                    else if (question.AnswerType == QuestionAnswerType.FreeText && results.FreeTextAnswers != null)
+                                                    {
+                                                        <div class="mt-2">
+                                                            <small><strong>Responses:</strong> @results.FreeTextAnswers.Count</small>
+                                                            @if (results.FreeTextAnswers.Any())
+                                                            {
+                                                                <details class="mt-1">
+                                                                    <summary class="btn btn-sm btn-link p-0">View responses</summary>
+                                                                    <ul class="mt-1 mb-0">
+                                                                        @foreach (var answer in results.FreeTextAnswers)
+                                                                        {
+                                                                            <li><small>@answer</small></li>
+                                                                        }
+                                                                    </ul>
+                                                                </details>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
                 </div>
             </div>
         }
@@ -285,6 +518,21 @@ else
     private string newStageName = string.Empty;
     private string newStageDescription = string.Empty;
     private int newStageDuration = 10;
+
+    // Question fields
+    private List<Question> questions = new();
+    private string newQuestionText = string.Empty;
+    private QuestionAnswerType newQuestionType = QuestionAnswerType.SingleChoice;
+    private QuestionTriggerType newQuestionTriggerType = QuestionTriggerType.Manual;
+    private QuestionResultVisibility newQuestionVisibility = QuestionResultVisibility.FacilitatorOnly;
+    private List<string> newQuestionOptions = new() { "", "" };
+    private int newScaleMin = 1;
+    private int newScaleMax = 5;
+    private string newScaleMinLabel = string.Empty;
+    private string newScaleMaxLabel = string.Empty;
+    private string? newQuestionAssociatedStageId = null;
+    private string questionError = string.Empty;
+    private Dictionary<Guid, QuestionResultsDto> questionResults = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -308,6 +556,24 @@ else
     {
         var query = new GetMeetingByTokenQuery(Token, true);
         meeting = await Mediator.Send(query);
+
+        if (meeting != null)
+        {
+            // Load questions
+            var questionsQuery = new GetQuestionsByMeetingQuery(meeting.Id);
+            questions = await Mediator.Send(questionsQuery);
+
+            // Load results for active/closed questions
+            foreach (var question in questions.Where(q => q.Status != QuestionStatus.Draft))
+            {
+                var resultsQuery = new GetQuestionResultsQuery(question.Id);
+                var results = await Mediator.Send(resultsQuery);
+                if (results != null)
+                {
+                    questionResults[question.Id] = results;
+                }
+            }
+        }
     }
 
     private async Task StartMeeting()
@@ -476,6 +742,131 @@ else
             StageStatus.Active => "bg-primary",
             StageStatus.Completed => "bg-success",
             StageStatus.Skipped => "bg-secondary",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    // Question management methods
+    private void AddOption()
+    {
+        if (newQuestionOptions.Count < 10)
+        {
+            newQuestionOptions.Add("");
+        }
+    }
+
+    private void RemoveOption(int index)
+    {
+        if (newQuestionOptions.Count > 2)
+        {
+            newQuestionOptions.RemoveAt(index);
+        }
+    }
+
+    private async Task AddQuestion()
+    {
+        questionError = string.Empty;
+
+        if (meeting == null) return;
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(newQuestionText) || newQuestionText.Length < 10)
+        {
+            questionError = "Question text must be at least 10 characters.";
+            return;
+        }
+
+        if (newQuestionType == QuestionAnswerType.SingleChoice || newQuestionType == QuestionAnswerType.MultipleChoice)
+        {
+            if (newQuestionOptions.Count < 2 || newQuestionOptions.Any(string.IsNullOrWhiteSpace))
+            {
+                questionError = "Please provide at least 2 non-empty options.";
+                return;
+            }
+        }
+
+        if (newQuestionType == QuestionAnswerType.Scale)
+        {
+            if (newScaleMax - newScaleMin < 1)
+            {
+                questionError = "Scale must have at least 2 points.";
+                return;
+            }
+        }
+
+        if (newQuestionTriggerType == QuestionTriggerType.StageStart && string.IsNullOrWhiteSpace(newQuestionAssociatedStageId))
+        {
+            questionError = "Please select a stage for stage-triggered questions.";
+            return;
+        }
+
+        try
+        {
+            var options = (newQuestionType == QuestionAnswerType.SingleChoice || newQuestionType == QuestionAnswerType.MultipleChoice)
+                ? newQuestionOptions.Where(o => !string.IsNullOrWhiteSpace(o)).ToList()
+                : null;
+
+            Guid? associatedStageId = null;
+            if (newQuestionTriggerType == QuestionTriggerType.StageStart && !string.IsNullOrWhiteSpace(newQuestionAssociatedStageId))
+            {
+                associatedStageId = Guid.Parse(newQuestionAssociatedStageId);
+            }
+
+            var command = new CreateQuestionCommand(
+                meeting.Id,
+                newQuestionText,
+                newQuestionType,
+                newQuestionTriggerType,
+                associatedStageId,
+                newQuestionVisibility,
+                options,
+                newQuestionType == QuestionAnswerType.Scale ? newScaleMin : null,
+                newQuestionType == QuestionAnswerType.Scale ? newScaleMax : null,
+                newQuestionType == QuestionAnswerType.Scale ? newScaleMinLabel : null,
+                newQuestionType == QuestionAnswerType.Scale ? newScaleMaxLabel : null,
+                null, // MaxSelectableOptions - not implemented in basic version
+                false // TriggerImmediately
+            );
+
+            await Mediator.Send(command);
+            await LoadMeeting();
+
+            // Reset form
+            newQuestionText = string.Empty;
+            newQuestionType = QuestionAnswerType.SingleChoice;
+            newQuestionTriggerType = QuestionTriggerType.Manual;
+            newQuestionVisibility = QuestionResultVisibility.FacilitatorOnly;
+            newQuestionOptions = new() { "", "" };
+            newScaleMin = 1;
+            newScaleMax = 5;
+            newScaleMinLabel = string.Empty;
+            newScaleMaxLabel = string.Empty;
+            newQuestionAssociatedStageId = null;
+        }
+        catch (Exception ex)
+        {
+            questionError = $"Error creating question: {ex.Message}";
+        }
+    }
+
+    private async Task TriggerQuestion(Guid questionId)
+    {
+        await Mediator.Send(new TriggerQuestionCommand(questionId));
+        await LoadMeeting();
+    }
+
+    private async Task CloseQuestion(Guid questionId)
+    {
+        await Mediator.Send(new CloseQuestionCommand(questionId));
+        await LoadMeeting();
+    }
+
+    private string GetQuestionStatusBadge(QuestionStatus status)
+    {
+        return status switch
+        {
+            QuestionStatus.Active => "bg-success",
+            QuestionStatus.Closed => "bg-secondary",
             _ => "bg-light text-dark"
         };
     }

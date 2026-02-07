@@ -56,13 +56,22 @@ This document outlines the step-by-step plan for implementing the remaining feat
 ## Phase 3: Polling & Questions System
 *Goal: Enable structured feedback collection beyond simple concerns.*
 
-- [ ] **Question Management (Facilitator)**
+- [x] **Question Management (Facilitator)**
     - Feature: Define questions before or during meeting.
     - Spec: [Polling System Spec](docs/features/polling-system/spec.md) (AC1-AC11)
     - Details:
         - Types: Single Choice, Multiple Choice, Free Text, Scale.
         - Association with specific stages.
         - Ad-hoc question creation.
+    - Implementation:
+        - Created Question, QuestionOption, and QuestionResponse entities
+        - Created CreateQuestionCommand, TriggerQuestionCommand, CloseQuestionCommand, and SubmitQuestionResponseCommand
+        - Created query handlers: GetQuestionsByMeetingQuery, GetQuestionByIdQuery, GetActiveQuestionsForAttendeeQuery, GetQuestionResultsQuery
+        - Added question management UI to Facilitator view (both Setup and Active phases)
+        - Questions can be added with different types (Single Choice, Multiple Choice, Free Text, Scale)
+        - Questions can be triggered manually or set to auto-trigger at meeting/stage start
+        - Results are shown in real-time with response counts and percentages
+        - Successfully tested with Playwright automation
 
 - [ ] **Attendee Question Interface**
     - Feature: Attendees see and answer questions.
