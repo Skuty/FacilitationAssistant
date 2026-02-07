@@ -42,10 +42,16 @@ This document outlines the step-by-step plan for implementing the remaining feat
         - Buttons are disabled appropriately (top stage can't move up, bottom can't move down)
         - Successfully tested with Playwright automation
 
-- [ ] **Delete Agenda Stages**
+- [x] **Delete Agenda Stages**
     - Feature: Remove a stage that was added by mistake.
     - Spec: [Agenda Management](docs/features/agenda-management/spec.md) (Implied/Future Enhancement)
     - Details: Soft or hard delete of stages not yet started.
+    - Implementation:
+        - Created `DeleteAgendaStageCommand` and handler
+        - Added delete (🗑️) button to Facilitator UI in Setup phase
+        - Only stages with status `NotStarted` can be deleted
+        - Remaining stages are automatically reordered after deletion
+        - Successfully tested with Playwright automation
 
 ## Phase 3: Polling & Questions System
 *Goal: Enable structured feedback collection beyond simple concerns.*

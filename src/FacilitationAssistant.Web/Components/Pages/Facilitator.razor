@@ -120,6 +120,11 @@ else
                                                         title="Move Down">
                                                     ▼
                                                 </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        @onclick="() => DeleteStage(stage.Id)"
+                                                        title="Delete Stage">
+                                                    🗑️
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -354,6 +359,15 @@ else
         if (stage == null || stage.OrderIndex >= meeting.Stages.Count - 1) return;
 
         var command = new ReorderAgendaStagesCommand(meeting.Id, stageId, stage.OrderIndex + 1);
+        await Mediator.Send(command);
+        await LoadMeeting();
+    }
+
+    private async Task DeleteStage(Guid stageId)
+    {
+        if (meeting == null) return;
+
+        var command = new DeleteAgendaStageCommand(meeting.Id, stageId);
         await Mediator.Send(command);
         await LoadMeeting();
     }
