@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -15,7 +15,7 @@ public class SubmitQuestionResponseHandler : IRequestHandler<SubmitQuestionRespo
         _context = context;
     }
 
-    public async Task<Guid> Handle(SubmitQuestionResponseCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Guid> Handle(SubmitQuestionResponseCommand request, CancellationToken cancellationToken)
     {
         var question = await _context.Questions
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);

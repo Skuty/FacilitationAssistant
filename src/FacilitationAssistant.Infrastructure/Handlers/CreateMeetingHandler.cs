@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -14,7 +14,7 @@ public class CreateMeetingHandler : IRequestHandler<CreateMeetingCommand, Create
         _context = context;
     }
 
-    public async Task<CreateMeetingResult> Handle(CreateMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<CreateMeetingResult> Handle(CreateMeetingCommand request, CancellationToken cancellationToken)
     {
         var facilitatorToken = GenerateToken();
         var attendeeToken = GenerateToken();

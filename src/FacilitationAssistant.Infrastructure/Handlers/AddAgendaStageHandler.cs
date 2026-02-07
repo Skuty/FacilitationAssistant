@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -15,7 +15,7 @@ public class AddAgendaStageHandler : IRequestHandler<AddAgendaStageCommand, Guid
         _context = context;
     }
 
-    public async Task<Guid> Handle(AddAgendaStageCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Guid> Handle(AddAgendaStageCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
             .Include(m => m.Stages)

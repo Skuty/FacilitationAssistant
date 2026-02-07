@@ -1,5 +1,5 @@
 using FacilitationAssistant.Core.Entities;
-using MediatR;
+using Mediator;
 
 namespace FacilitationAssistant.Core.Commands;
 

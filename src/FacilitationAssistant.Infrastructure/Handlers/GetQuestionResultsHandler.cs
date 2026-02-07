@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Core.Queries;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -15,7 +15,7 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
         _context = context;
     }
 
-    public async Task<QuestionResultsDto?> Handle(GetQuestionResultsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<QuestionResultsDto?> Handle(GetQuestionResultsQuery request, CancellationToken cancellationToken)
     {
         var question = await _context.Questions
             .Include(q => q.Options)

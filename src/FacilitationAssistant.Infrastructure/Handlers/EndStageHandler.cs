@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -15,7 +15,7 @@ public class EndStageHandler : IRequestHandler<EndStageCommand, Unit>
         _context = context;
     }
 
-    public async Task<Unit> Handle(EndStageCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Unit> Handle(EndStageCommand request, CancellationToken cancellationToken)
     {
         var stage = await _context.AgendaStages
             .FirstOrDefaultAsync(s => s.Id == request.StageId && s.MeetingId == request.MeetingId, cancellationToken);

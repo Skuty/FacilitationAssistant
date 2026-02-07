@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -14,7 +14,7 @@ public class AddNoteHandler : IRequestHandler<AddNoteCommand, Guid>
         _context = context;
     }
 
-    public async Task<Guid> Handle(AddNoteCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Guid> Handle(AddNoteCommand request, CancellationToken cancellationToken)
     {
         var note = new Note
         {

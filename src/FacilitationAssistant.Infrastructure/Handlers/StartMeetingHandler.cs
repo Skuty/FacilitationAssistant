@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -15,7 +15,7 @@ public class StartMeetingHandler : IRequestHandler<StartMeetingCommand, Unit>
         _context = context;
     }
 
-    public async Task<Unit> Handle(StartMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Unit> Handle(StartMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);

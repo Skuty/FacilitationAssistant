@@ -16,9 +16,10 @@ builder.Services.AddSignalR();
 builder.Services.AddDbContext<FacilitationDbContext>(options =>
     options.UseInMemoryDatabase("FacilitationDb"));
 
-// Add MediatR
-builder.Services.AddMediatR(cfg => {
-    cfg.RegisterServicesFromAssembly(typeof(FacilitationDbContext).Assembly);
+// Add Mediator
+builder.Services.AddMediator(options =>
+{
+    options.ServiceLifetime = ServiceLifetime.Transient;
 });
 
 var app = builder.Build();

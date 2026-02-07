@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Core.Queries;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -15,7 +15,7 @@ public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, 
         _context = context;
     }
 
-    public async Task<Meeting?> Handle(GetMeetingByTokenQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Meeting?> Handle(GetMeetingByTokenQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Meetings
             .Include(m => m.Stages.OrderBy(s => s.OrderIndex))

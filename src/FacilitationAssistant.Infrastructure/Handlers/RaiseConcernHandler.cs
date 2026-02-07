@@ -1,7 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
-using MediatR;
+using Mediator;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -14,7 +14,7 @@ public class RaiseConcernHandler : IRequestHandler<RaiseConcernCommand, Guid>
         _context = context;
     }
 
-    public async Task<Guid> Handle(RaiseConcernCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Guid> Handle(RaiseConcernCommand request, CancellationToken cancellationToken)
     {
         var concern = new Concern
         {
