@@ -5,6 +5,7 @@
 @using FacilitationAssistant.Core.Commands
 @using MediatR
 @inject IMediator Mediator
+@inject NavigationManager Navigation
 
 <PageTitle>@(meeting?.Title ?? "Meeting") - Attendee</PageTitle>
 
@@ -230,10 +231,25 @@ else
     {
         await LoadMeeting();
         
+        // If meeting is ended, redirect to summary
+        if (meeting?.Status == MeetingStatus.Ended)
+        {
+            Navigation.NavigateTo($"/summary/{Token}");
+            return;
+        }
+        
         // Refresh every 2 seconds
         refreshTimer = new System.Threading.Timer(async _ =>
         {
             await LoadMeeting();
+            
+            // Check if meeting ended during the session
+            if (meeting?.Status == MeetingStatus.Ended)
+            {
+                await InvokeAsync(() => Navigation.NavigateTo($"/summary/{Token}"));
+                return;
+            }
+            
             await InvokeAsync(StateHasChanged);
         }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }

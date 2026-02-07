@@ -21,6 +21,34 @@
 else
 {
     <div class="container-fluid">
+        @* End Meeting Confirmation Dialog *@
+        @if (showEndMeetingDialog)
+        {
+            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">⚠️ End Meeting?</h5>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to end this meeting?</p>
+                            <p class="mb-0"><strong>This will:</strong></p>
+                            <ul>
+                                <li>Stop all active stage timers</li>
+                                <li>Finalize the meeting summary</li>
+                                <li>Redirect all participants to the summary view</li>
+                            </ul>
+                            <p class="text-muted mb-0"><small>This action cannot be undone.</small></p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CancelEndMeeting">Cancel</button>
+                            <button type="button" class="btn btn-danger" @onclick="ConfirmEndMeeting">End Meeting</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         <div class="row">
             <div class="col-12 bg-primary text-white p-3">
                 <div class="d-flex justify-content-between align-items-center">
@@ -38,9 +66,12 @@ else
                         }
                         else if (meeting.Status == MeetingStatus.Active)
                         {
-                            <span class="badge bg-light text-primary fs-6">
+                            <span class="badge bg-light text-primary fs-6 me-2">
                                 ⏱️ @GetElapsedTime()
                             </span>
+                            <button class="btn btn-danger" @onclick="ShowEndMeetingConfirmation">
+                                ⏹️ End Meeting
+                            </button>
                         }
                     </div>
                 </div>
@@ -224,6 +255,7 @@ else
 
     private Meeting? meeting;
     private bool showLinksPanel = false;
+    private bool showEndMeetingDialog = false;
     private System.Threading.Timer? refreshTimer;
 
     // Stage builder fields
@@ -234,6 +266,13 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadMeeting();
+        
+        // If meeting is ended, redirect to summary
+        if (meeting?.Status == MeetingStatus.Ended)
+        {
+            Navigation.NavigateTo($"/summary/{Token}");
+            return;
+        }
         
         // Refresh every second for time updates
         refreshTimer = new System.Threading.Timer(async _ =>
@@ -289,6 +328,27 @@ else
         if (meeting == null) return;
         await Mediator.Send(new EndStageCommand(meeting.Id, stageId));
         await LoadMeeting();
+    }
+
+    private void ShowEndMeetingConfirmation()
+    {
+        showEndMeetingDialog = true;
+    }
+
+    private void CancelEndMeeting()
+    {
+        showEndMeetingDialog = false;
+    }
+
+    private async Task ConfirmEndMeeting()
+    {
+        if (meeting == null) return;
+        
+        showEndMeetingDialog = false;
+        await Mediator.Send(new EndMeetingCommand(meeting.Id));
+        
+        // Navigate to summary page
+        Navigation.NavigateTo($"/summary/{meeting.FacilitatorToken}");
     }
 
     private void ShowLinks()

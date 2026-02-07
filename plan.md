@@ -10,7 +10,7 @@ This document outlines the step-by-step plan for implementing the remaining feat
 ## Phase 1: Meeting Lifecycle & Summary
 *Goal: Allow meetings to be formally ended and provide a persistent record of what happened.*
 
-- [ ] **End Meeting Functionality**
+- [x] **End Meeting Functionality**
     - Feature: Facilitator can permanently end a meeting.
     - Spec: [Meeting Summary Spec](docs/features/meeting-summary/spec.md) (AC1-AC4)
     - Details:
@@ -19,7 +19,7 @@ This document outlines the step-by-step plan for implementing the remaining feat
         - Stops all timers and freezes state.
         - Redirects all users to Summary view.
 
-- [ ] **Meeting Summary View**
+- [x] **Meeting Summary View**
     - Feature: Read-only view of a concluded meeting.
     - Spec: [Meeting Summary Spec](docs/features/meeting-summary/spec.md) (AC5-AC39)
     - Details:

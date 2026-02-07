@@ -1,0 +1,328 @@
+@page "/summary/{token}"
+@rendermode InteractiveServer
+@using FacilitationAssistant.Core.Entities
+@using FacilitationAssistant.Core.Queries
+@using MediatR
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+
+<PageTitle>Meeting Summary - @(meeting?.Title ?? "Meeting")</PageTitle>
+
+@if (meeting == null)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3">Loading summary...</p>
+    </div>
+}
+else if (meeting.Status != MeetingStatus.Ended)
+{
+    <div class="container mt-5">
+        <div class="alert alert-warning">
+            <h4>Meeting Not Ended</h4>
+            <p>This meeting has not been ended yet. The summary will be available once the facilitator ends the meeting.</p>
+            @if (isFacilitator)
+            {
+                <a href="/facilitator/@Token" class="btn btn-primary">Return to Meeting</a>
+            }
+            else
+            {
+                <a href="/attendee/@Token" class="btn btn-primary">Return to Meeting</a>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 bg-success text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">✅ @meeting.Title</h4>
+                        <small>Meeting Summary | Ended @meeting.EndedAt?.ToString("MMM dd, yyyy HH:mm")</small>
+                    </div>
+                    <button class="btn btn-light" @onclick="PrintSummary">🖨️ Print</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-8">
+                @* Meeting Metadata *@
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>📋 Meeting Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Created:</strong> @meeting.CreatedAt.ToString("MMM dd, yyyy HH:mm")</p>
+                                <p><strong>Started:</strong> @(meeting.StartedAt?.ToString("MMM dd, yyyy HH:mm") ?? "Not started")</p>
+                                <p><strong>Ended:</strong> @(meeting.EndedAt?.ToString("MMM dd, yyyy HH:mm") ?? "N/A")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total Duration:</strong> @GetTotalDuration()</p>
+                                <p><strong>Planned Duration:</strong> @GetPlannedDuration()</p>
+                                @if (GetDurationVariance() != null)
+                                {
+                                    <p><strong>Variance:</strong> <span class="@GetVarianceClass()">@GetDurationVariance()</span></p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Agenda Breakdown *@
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>📊 Agenda Breakdown</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!meeting.Stages.Any())
+                        {
+                            <p class="text-muted">No agenda stages were defined for this meeting.</p>
+                        }
+                        else if (!meeting.Stages.Any(s => s.Status != StageStatus.NotStarted))
+                        {
+                            <p class="text-muted">Meeting ended without starting any stages.</p>
+                        }
+                        else
+                        {
+                            @foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
+                            {
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
+                                                @if (!string.IsNullOrEmpty(stage.Description))
+                                                {
+                                                    <p class="text-muted mb-2"><small>@stage.Description</small></p>
+                                                }
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge @GetStatusBadgeClass(stage.Status)">@stage.Status</span>
+                                                    <small class="text-muted">Planned: @stage.PlannedDurationMinutes min</small>
+                                                    @if (stage.Status == StageStatus.Completed && stage.ActualDurationSeconds.HasValue)
+                                                    {
+                                                        var actualMinutes = stage.ActualDurationSeconds.Value / 60;
+                                                        var variance = actualMinutes - stage.PlannedDurationMinutes;
+                                                        <span class="@(variance > 0 ? "text-danger" : "text-success")">
+                                                            Actual: @actualMinutes min (@(variance > 0 ? "+" : "")@variance min)
+                                                        </span>
+                                                    }
+                                                </div>
+                                                
+                                                @* Show notes for this stage *@
+                                                @{
+                                                    var stageNotes = meeting.Notes.Where(n => n.StageId == stage.Id).ToList();
+                                                }
+                                                @if (stageNotes.Any())
+                                                {
+                                                    <div class="mt-2">
+                                                        <small class="fw-bold">Notes:</small>
+                                                        @foreach (var note in stageNotes.OrderBy(n => n.CreatedAt))
+                                                        {
+                                                            <div class="alert alert-light mb-1 py-1">
+                                                                <small>
+                                                                    @if (!note.IsPublic)
+                                                                    {
+                                                                        <span class="text-muted">🔒 Private: </span>
+                                                                    }
+                                                                    @note.Content
+                                                                    <span class="text-muted">(@note.CreatedAt.ToString("HH:mm"))</span>
+                                                                </small>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                @* General Meeting Notes *@
+                @{
+                    var generalNotes = meeting.Notes.Where(n => n.StageId == null).ToList();
+                }
+                @if (generalNotes.Any())
+                {
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5>📝 General Meeting Notes</h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var note in generalNotes.OrderBy(n => n.CreatedAt))
+                            {
+                                <div class="alert alert-info mb-2">
+                                    @if (!note.IsPublic)
+                                    {
+                                        <span class="badge bg-secondary">🔒 Private</span>
+                                    }
+                                    <p class="mb-1">@note.Content</p>
+                                    <small class="text-muted">Created at @note.CreatedAt.ToString("HH:mm:ss")</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* Concerns Summary *@
+                @if (meeting.Concerns.Any())
+                {
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5>⚠️ Concerns Raised</h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var concern in meeting.Concerns.OrderBy(c => c.CreatedAt))
+                            {
+                                <div class="alert @(concern.IsDismissed ? "alert-secondary" : "alert-warning") mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <strong>@concern.ConcernType</strong>
+                                            @if (concern.IsDismissed)
+                                            {
+                                                <span class="badge bg-secondary ms-2">Dismissed</span>
+                                            }
+                                        </div>
+                                        <small class="text-muted">@concern.CreatedAt.ToString("HH:mm:ss")</small>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(concern.CustomText))
+                                    {
+                                        <p class="mb-0 mt-1">@concern.CustomText</p>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @* Statistics Sidebar *@
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">📊 Meeting Statistics</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Total Stages:</strong> @meeting.Stages.Count</p>
+                        <p class="mb-2"><strong>Completed:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.Completed)</p>
+                        <p class="mb-2"><strong>Skipped:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.Skipped)</p>
+                        <p class="mb-2"><strong>Not Started:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.NotStarted)</p>
+                        <hr />
+                        <p class="mb-2"><strong>Total Notes:</strong> @meeting.Notes.Count</p>
+                        <p class="mb-2"><strong>Public Notes:</strong> @meeting.Notes.Count(n => n.IsPublic)</p>
+                        <p class="mb-2"><strong>Private Notes:</strong> @meeting.Notes.Count(n => !n.IsPublic)</p>
+                        <hr />
+                        <p class="mb-0"><strong>Concerns Raised:</strong> @meeting.Concerns.Count</p>
+                        <p class="mb-0"><strong>Dismissed:</strong> @meeting.Concerns.Count(c => c.IsDismissed)</p>
+                    </div>
+                </div>
+
+                @if (isFacilitator)
+                {
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">ℹ️ Facilitator Info</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-0"><small>You are viewing this summary as a facilitator. All notes (public and private) are visible.</small></p>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private Meeting? meeting;
+    private bool isFacilitator = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Try to load meeting by token (could be facilitator or attendee token)
+        var facilitatorQuery = new GetMeetingByTokenQuery(Token, true);
+        meeting = await Mediator.Send(facilitatorQuery);
+        
+        if (meeting != null)
+        {
+            isFacilitator = true;
+            return;
+        }
+
+        var attendeeQuery = new GetMeetingByTokenQuery(Token, false);
+        meeting = await Mediator.Send(attendeeQuery);
+    }
+
+    private string GetTotalDuration()
+    {
+        if (meeting?.StartedAt == null || meeting?.EndedAt == null)
+            return "Not started";
+        
+        var duration = meeting.EndedAt.Value - meeting.StartedAt.Value;
+        return $"{(int)duration.TotalMinutes} minutes";
+    }
+
+    private string GetPlannedDuration()
+    {
+        var totalPlanned = meeting?.Stages.Sum(s => s.PlannedDurationMinutes) ?? 0;
+        return $"{totalPlanned} minutes";
+    }
+
+    private string? GetDurationVariance()
+    {
+        if (meeting?.StartedAt == null || meeting?.EndedAt == null)
+            return null;
+        
+        var actualMinutes = (int)(meeting.EndedAt.Value - meeting.StartedAt.Value).TotalMinutes;
+        var plannedMinutes = meeting.Stages.Sum(s => s.PlannedDurationMinutes);
+        var variance = actualMinutes - plannedMinutes;
+        
+        if (variance > 0)
+            return $"+{variance} min (overrun)";
+        else if (variance < 0)
+            return $"{variance} min (under time)";
+        else
+            return "On time";
+    }
+
+    private string GetVarianceClass()
+    {
+        if (meeting?.StartedAt == null || meeting?.EndedAt == null)
+            return "";
+        
+        var actualMinutes = (int)(meeting.EndedAt.Value - meeting.StartedAt.Value).TotalMinutes;
+        var plannedMinutes = meeting.Stages.Sum(s => s.PlannedDurationMinutes);
+        var variance = actualMinutes - plannedMinutes;
+        
+        return variance > 0 ? "text-danger" : variance < 0 ? "text-success" : "text-muted";
+    }
+
+    private string GetStatusBadgeClass(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.Active => "bg-primary",
+            StageStatus.Completed => "bg-success",
+            StageStatus.Skipped => "bg-secondary",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    private void PrintSummary()
+    {
+        // In a real implementation, trigger browser print dialog
+        // JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
