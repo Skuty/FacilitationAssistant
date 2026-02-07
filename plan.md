@@ -32,10 +32,15 @@ This document outlines the step-by-step plan for implementing the remaining feat
 ## Phase 2: Enhanced Agenda Management
 *Goal: Give facilitators full control over the agenda structure during setup and execution.*
 
-- [ ] **Reorder Agenda Stages**
+- [x] **Reorder Agenda Stages**
     - Feature: Drag-and-drop or Move Up/Down controls for stages.
     - Spec: [Agenda Management](docs/features/agenda-management/spec.md) (Implied/Future Enhancement)
     - Details: Allow changing `OrderIndex` of stages.
+    - Implementation:
+        - Created `ReorderAgendaStagesCommand` and handler
+        - Added Move Up/Down buttons to Facilitator UI in Setup phase
+        - Buttons are disabled appropriately (top stage can't move up, bottom can't move down)
+        - Successfully tested with Playwright automation
 
 - [ ] **Delete Agenda Stages**
     - Feature: Remove a stage that was added by mistake.
