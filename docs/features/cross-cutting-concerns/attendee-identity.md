@@ -17,17 +17,17 @@ The application allows attendees to join without authentication, but this create
 
 ### Session Creation & Persistence
 
-- **AC1**: Given I access an attendee link for the first time, When the page loads, Then a unique session identifier is generated and stored in browser localStorage
-- **AC2**: Given I have an existing session, When I refresh the page, Then my session identifier is retrieved from localStorage and I reconnect as the same attendee
-- **AC3**: Given I clear browser data or use incognito mode, When I access the attendee link again, Then I am treated as a new attendee with a new session ID
+- **AC1**: Given I access an attendee link for the first time, When the page loads, Then a unique session identifier is generated server-side, stored in PostgreSQL, and synced to browser localStorage via JSInterop
+- **AC2**: Given I have an existing session, When I refresh the page, Then my session identifier is retrieved from localStorage via JSInterop, validated against PostgreSQL, and Blazor circuit reconnects as the same attendee
+- **AC3**: Given I clear browser data or use incognito mode, When I access the attendee link again, Then I am treated as a new attendee with a new session ID created in PostgreSQL
 - **AC4**: Given I join from a mobile device and later join from desktop, When I access from different devices, Then I am counted as two separate attendees (no cross-device session sync)
 
 ### Optional Display Name
 
-- **AC5**: Given I join as an attendee, When the interface loads, Then I see an optional "Set Display Name" field (max 30 characters)
-- **AC6**: Given I set a display name, When I submit it, Then it is stored in my session and appears on my notes and concerns
-- **AC7**: Given I don't set a display name, When I create notes or concerns, Then they are attributed to "Attendee #X" where X is my auto-generated number (e.g., "Attendee #5")
-- **AC8**: Given I set a display name, When I change it mid-meeting, Then all my existing contributions are retroactively updated to show the new name
+- **AC5**: Given I join as an attendee, When the Blazor component loads, Then I see an optional "Set Display Name" field (max 30 characters)
+- **AC6**: Given I set a display name, When I submit it, Then it is persisted to PostgreSQL via EF Core and appears on my notes and concerns
+- **AC7**: Given I don't set a display name, When I create notes or concerns, Then they are attributed to "Attendee #X" where X is my auto-generated number from PostgreSQL (e.g., "Attendee #5")
+- **AC8**: Given I set a display name, When I change it mid-meeting, Then EF Core updates all my existing contributions retroactively to show the new name
 - **AC9**: Given two attendees choose the same display name, When viewing contributions, Then both names are suffixed with session ID (e.g., "John (A5)", "John (A7)")
 
 ### Attendee Numbering & Identity
@@ -46,9 +46,9 @@ The application allows attendees to join without authentication, but this create
 
 ### Session Expiration & Data Retention
 
-- **AC18**: Given a meeting has ended, When 48 hours pass, Then all attendee session data (responses, notes) is deleted from the server
-- **AC19**: Given a meeting is active, When I don't interact for 8 hours, Then my session remains valid (no inactivity timeout during active meetings)
-- **AC20**: Given a meeting ended 7 days ago, When I access the attendee link, Then I see read-only summary but cannot create new content (session no longer active)
+- **AC18**: Given a meeting has ended, When 48 hours pass, Then all attendee session data (responses, notes) is soft-deleted from PostgreSQL via background job
+- **AC19**: Given a meeting is active, When I don't interact for 8 hours, Then my Blazor circuit may timeout but session remains valid in PostgreSQL (no inactivity timeout during active meetings)
+- **AC20**: Given a meeting ended 7 days ago, When I access the attendee link, Then I see read-only summary from PostgreSQL but cannot create new content (session no longer active)
 
 ## Out of Scope
 
@@ -66,95 +66,108 @@ The application allows attendees to join without authentication, but this create
 
 1. **Session ID collision**: What if two attendees generate the same session ID?
    - Risk: Data mixing, one attendee's actions attributed to another
-   - Mitigation: Use UUIDv4 (collision probability negligible), validate uniqueness on server
+   - Mitigation: Use GUID generation in .NET (collision probability negligible), PostgreSQL unique constraint validates uniqueness
 
 2. **Display name spoofing**: What if an attendee impersonates the facilitator by setting name "Facilitator"?
    - Risk: Confusion, attendees think notes/concerns are from facilitator
-   - Mitigation: Reserve "Facilitator" as a blocked display name, show role badge on facilitator content
+   - Mitigation: Reserve "Facilitator" as a blocked display name in validation pipeline, show role badge on facilitator content
 
-3. **Session hijacking via link sharing**: What if an attendee shares their sessionStorage with another person?
+3. **Session hijacking via storage sharing**: What if an attendee shares their session ID with another person?
    - Risk: Multiple people control the same "attendee" identity
-   - Mitigation: Document risk (out of scope for v1), no technical prevention
+   - Mitigation: Document risk (out of scope for v1), Blazor Server validates session exists in PostgreSQL
 
-4. **Browser fingerprinting leakage**: What if session IDs reveal user identity through side channels?
+4. **Session security**: What if session IDs reveal user identity through side channels?
    - Risk: Anonymity compromised
-   - Mitigation: Use cryptographically random UUIDs, no browser fingerprinting
+   - Mitigation: Use cryptographically random GUIDs in .NET, no browser fingerprinting
 
 ### Edge Cases
 
 5. **Attendee joins before facilitator starts meeting**: What if an attendee accesses the link during meeting setup?
-   - Behavior: Show "Meeting starting soon" message, session is created but inactive, activates when meeting starts
+   - Behavior: Show "Meeting starting soon" message, session is created in PostgreSQL but inactive, activates when meeting starts
 
 6. **Attendee #1 leaves, then rejoins as Attendee #50**: What if first joiner reconnects after 49 others?
-   - Behavior: Retains original number (#1), no renumbering
+   - Behavior: Retains original number (#1) from PostgreSQL record, no renumbering
 
 7. **Display name with special characters**: What if attendee enters name "Attendee <script>alert('XSS')</script>"?
-   - Behavior: Sanitize display name (strip HTML tags, encode special characters), show "Invalid characters removed" warning
+   - Behavior: Sanitize display name via MediatR validation pipeline (strip HTML tags using HtmlEncoder), show "Invalid characters removed" warning
 
 8. **Incognito mode attendee**: What if attendee joins in incognito, then joins in normal browser?
-   - Behavior: Two separate sessions, counted as two different attendees (expected behavior)
+   - Behavior: Two separate sessions in PostgreSQL, counted as two different attendees (expected behavior)
 
-9. **Session storage full**: What if browser localStorage is full or disabled?
-   - Behavior: Fallback to sessionStorage (session lost on tab close), show warning "Session may not persist across page refreshes"
+9. **Storage unavailable**: What if browser localStorage is disabled or full?
+   - Behavior: Blazor circuit maintains session server-side only, show warning "Session may not persist if Blazor circuit disconnects"
 
 10. **Concurrent browser tabs with same link**: What if attendee opens attendee link in two tabs?
-    - Behavior: Both tabs share the same session ID (read from localStorage), actions from either tab attributed to same attendee
+    - Behavior: Both tabs may share the same session ID via localStorage, but each establishes separate Blazor circuit; actions from either tab attributed to same attendee in PostgreSQL
 
 ## UI/UX Requirements
 
 ### Display Name Setup
 
-1. **Location**: Top of attendee interface, dismissible after first set
-2. **Prompt**: "Set your display name (optional)" with text input field
-3. **Validation**: 1-30 characters, no HTML tags, alphanumeric + spaces + basic punctuation only
-4. **Save Button**: "Save Name" → On success, show "Display name saved ✓" for 2 seconds
+1. **Location**: Top of attendee Blazor component, dismissible after first set
+2. **Prompt**: "Set your display name (optional)" with input field
+3. **Validation**: 1-30 characters via MediatR command validator, no HTML tags (HtmlEncoder), alphanumeric + spaces + basic punctuation only
+4. **Save Button**: "Save Name" → Executes command via MediatR → On success, SignalR broadcasts update → Show "Display name saved ✓" for 2 seconds
 5. **Edit Option**: Once set, show "Editing as: [Name]" with small edit icon to change
 
 ### Attendee Identifier Display
 
-1. **Facilitator View**: All attendee content shows "Display Name (A#)" or "Attendee #X"
-2. **Attendee View**: Own content shows "You", others' content shows their display name or "Attendee #X"
-3. **Color Coding**: Each attendee number has consistent color across notes/concerns (e.g., Attendee #1 always blue)
+1. **Facilitator View**: All attendee content shows "Display Name (A#)" or "Attendee #X" loaded from PostgreSQL
+2. **Attendee View**: Own content shows "You", others' content shows their display name or "Attendee #X" from server state
+3. **Color Coding**: Each attendee number has consistent color across notes/concerns (e.g., Attendee #1 always blue), managed via Blazor component CSS
 
 ### Session Status Indicators
 
 1. **Session Active**: No indicator needed (silent success)
-2. **Session Warning**: If localStorage unavailable, show banner "Your session may not persist across page refreshes"
-3. **Session Lost**: If session ID missing on reconnect, show "New session created - Previous responses may not be visible"
+2. **Session Warning**: If localStorage unavailable via JSInterop, show banner "Your session may not persist if Blazor circuit disconnects"
+3. **Session Lost**: If session ID missing on Blazor circuit reconnect, show "New session created - Previous responses may not be visible"
 
 ## Dependencies
 
 ### Internal Features
 
-- **Real-Time Sync**: Session ID used to authenticate WebSocket connections
-- **Concerns System**: Ownership based on session ID
-- **Notes System**: Ownership based on session ID
-- **Polling System**: Response attribution based on session ID
-- **Meeting Summary**: Session data aggregated for post-meeting view
+- **Real-Time Sync**: Session ID used to authenticate SignalR hub connections and Blazor circuits
+- **Concerns System**: Ownership based on session_id foreign key in PostgreSQL
+- **Notes System**: Ownership based on session_id foreign key in PostgreSQL
+- **Polling System**: Response attribution based on session_id foreign key in PostgreSQL
+- **Meeting Summary**: Session data aggregated via EF Core queries for post-meeting view
 
 ### External Systems
 
-- **UUID Generation Library**: Client-side UUID v4 generator
-- **Browser Storage API**: localStorage for session persistence
-- **Server-Side Session Store**: Map session IDs to attendee numbers and display names
-- **Content Sanitization**: Prevent XSS in display names
+- **GUID Generation**: .NET `Guid.NewGuid()` for session IDs
+- **Browser Storage API**: JSInterop to localStorage for client-side session persistence (optional enhancement)
+- **PostgreSQL Database**: EF Core repository for `AttendeeSession` entity
+- **Content Sanitization**: `System.Text.Encodings.Web.HtmlEncoder` to prevent XSS in display names
 
-## Data Model (Conceptual)
+## Data Model (EF Core Entity)
 
-```
-AttendeeSession {
-  session_id: uuid (primary key)
-  meeting_id: foreign_key
-  attendee_number: integer (auto-increment per meeting)
-  display_name: string(30) | null
-  first_seen_at: timestamp
-  last_seen_at: timestamp
+```csharp
+public class AttendeeSession
+{
+    public Guid SessionId { get; set; } // Primary key
+    public Guid MeetingId { get; set; } // Foreign key to Meeting
+    public Meeting Meeting { get; set; } // Navigation property
+
+    public int AttendeeNumber { get; set; } // Auto-assigned per meeting
+    public string? DisplayName { get; set; } // Max 30 chars, nullable
+
+    public DateTime FirstSeenAt { get; set; }
+    public DateTime LastSeenAt { get; set; }
+    public bool IsActive { get; set; } // Soft delete flag
+
+    // Navigation properties for owned content
+    public ICollection<Concern> Concerns { get; set; }
+    public ICollection<Note> Notes { get; set; }
+    public ICollection<QuestionResponse> Responses { get; set; }
 }
 
-ContentOwnership {
-  content_id: uuid (concern_id, note_id, etc.)
-  content_type: 'concern' | 'note' | 'response'
-  session_id: foreign_key
+// Example usage in repository pattern
+public interface IAttendeeSessionRepository
+{
+    Task<AttendeeSession> CreateAsync(Guid meetingId);
+    Task<AttendeeSession?> GetByIdAsync(Guid sessionId);
+    Task UpdateDisplayNameAsync(Guid sessionId, string displayName);
+    Task<int> GetActiveCountAsync(Guid meetingId);
 }
 ```
 
@@ -162,41 +175,41 @@ ContentOwnership {
 
 ### Privacy
 
-- Session IDs must be cryptographically random (128-bit entropy)
+- Session IDs must be cryptographically random (128-bit via .NET GUID)
 - Display names are publicly visible to all meeting participants (no privacy guarantee)
-- No tracking of attendee behavior across multiple meetings (GDPR-friendly)
+- No tracking of attendee behavior across multiple meetings (GDPR-friendly, data isolated per meeting in PostgreSQL)
 
 ### Performance
 
-- Session validation on each WebSocket message < 10ms
-- Display name update propagates to all clients within 2 seconds
-- Session lookup in attendee count query < 50ms
+- Session validation on each SignalR hub invocation < 10ms (indexed PostgreSQL lookup)
+- Display name update propagates to all Blazor circuits via SignalR within 2 seconds
+- Session lookup in attendee count query < 50ms (PostgreSQL indexed query)
 
 ### Usability
 
-- Display name prompt is non-intrusive (collapsible, dismissible)
-- Session persistence works without user awareness (transparent)
+- Display name prompt is non-intrusive (collapsible, dismissible Blazor component)
+- Session persistence works without user awareness (transparent via JSInterop + PostgreSQL)
 - Clear attribution of user-generated content (no confusion about authorship)
 
 ## Testing Scenarios
 
 ### Happy Path
 
-1. Attendee joins → Session created → Sets display name "Alice" → Creates note → Note shows "Alice"
-2. Alice refreshes page → Session persists → Previous note still attributed to "Alice"
-3. Alice disconnects → Rejoins next day → Session persists if meeting still active
+1. Attendee joins → Session created in PostgreSQL → Sets display name "Alice" via command → Creates note → Note shows "Alice"
+2. Alice refreshes page → Blazor circuit reconnects → Session persists from PostgreSQL → Previous note still attributed to "Alice"
+3. Alice disconnects → Rejoins next day → Session persists in PostgreSQL if meeting still active
 
 ### Failure Cases
 
-1. **localStorage disabled**: Attendee joins → Warning shown → Session survives page refresh (sessionStorage fallback)
-2. **Session ID collision** (simulated): Two attendees with same UUID → Server rejects second, forces regeneration
-3. **XSS attempt**: Attendee sets name "<script>alert(1)</script>" → Sanitized to "scriptalert1script"
+1. **localStorage disabled**: Attendee joins → Warning shown via JSInterop check → Session maintained server-side in Blazor circuit
+2. **Session ID collision** (simulated): Two attendees with same GUID → PostgreSQL unique constraint violation → Server regenerates new GUID
+3. **XSS attempt**: Attendee sets name "<script>alert(1)</script>" → MediatR validator uses HtmlEncoder → Sanitized to "scriptalert1script"
 
 ### Edge Cases
 
-1. Two attendees set name "John" → Both shown as "John (A3)" and "John (A7)" in facilitator view
-2. Attendee joins in incognito → Creates note → Closes browser → Reopens incognito link → Previous note not visible (expected)
-3. Attendee opens 5 tabs with same link → All tabs share session → Actions from any tab attributed to same attendee
+1. Two attendees set name "John" → Both in PostgreSQL → Shown as "John (A3)" and "John (A7)" in facilitator Blazor component
+2. Attendee joins in incognito → Creates note → Closes browser → Reopens incognito link → Previous note not visible in PostgreSQL query (new session)
+3. Attendee opens 5 tabs with same link → localStorage shared → But 5 separate Blazor circuits → All linked to same session_id in PostgreSQL
 
 ---
 

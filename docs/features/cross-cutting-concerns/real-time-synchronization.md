@@ -17,11 +17,11 @@ Multiple attendees and the facilitator must see consistent meeting state (stage 
 
 ### WebSocket Connection Management
 
-- **AC1**: Given I access a meeting link, When the page loads, Then a WebSocket connection is established within 3 seconds or fallback to polling occurs
-- **AC2**: Given WebSocket connection fails, When fallback to polling activates, Then I see a warning indicator "Limited connectivity - using fallback mode"
+- **AC1**: Given I access a meeting link, When the page loads, Then a SignalR connection is established within 3 seconds or fallback to long polling occurs
+- **AC2**: Given SignalR connection fails, When fallback to long polling activates, Then I see a warning indicator "Limited connectivity - using fallback mode"
 - **AC3**: Given I lose network connection, When connection is lost, Then I see "Disconnected - Reconnecting..." message with retry countdown
 - **AC4**: Given I was disconnected, When network returns, Then reconnection attempts occur at: 1s, 2s, 5s, 10s, 30s intervals (exponential backoff)
-- **AC5**: Given I reconnect successfully, When connection is reestablished, Then I receive full current meeting state snapshot to resync
+- **AC5**: Given I reconnect successfully, When connection is reestablished, Then I receive full current meeting state snapshot to resync via Blazor Server state management
 
 ### State Synchronization Timing
 
@@ -38,10 +38,10 @@ Multiple attendees and the facilitator must see consistent meeting state (stage 
 
 ### Connection Status Visibility
 
-- **AC13**: Given I am connected via WebSocket, When viewing the interface, Then I see a subtle "Connected" indicator (green dot)
-- **AC14**: Given I am in polling fallback mode, When viewing the interface, Then I see "Limited connectivity" warning (yellow indicator)
+- **AC13**: Given I am connected via SignalR, When viewing the interface, Then I see a subtle "Connected" indicator (green dot)
+- **AC14**: Given I am in long polling fallback mode, When viewing the interface, Then I see "Limited connectivity" warning (yellow indicator)
 - **AC15**: Given I am disconnected, When viewing the interface, Then I see "Disconnected" error (red indicator) with "Reconnecting..." message
-- **AC16**: Given I am a facilitator, When viewing the interface, Then I see "X attendees connected" count updated in real-time
+- **AC16**: Given I am a facilitator, When viewing the interface, Then I see "X attendees connected" count updated in real-time via SignalR hub notifications
 
 ### Attendee Join/Leave Events
 
@@ -63,39 +63,39 @@ Multiple attendees and the facilitator must see consistent meeting state (stage 
 
 1. **Split-brain scenario**: What if the facilitator's connection drops but they don't realize it?
    - Risk: Facilitator thinks they're controlling meeting but no one sees their actions
-   - Mitigation: Aggressive "Disconnected" warning banner, disable all controls when disconnected
+   - Mitigation: Aggressive "Disconnected" warning banner, disable all controls when disconnected via Blazor circuit monitoring
 
 2. **Clock skew between clients**: What if attendee's system clock is wrong?
    - Risk: Timers show incorrect remaining time, countdowns desynchronized
-   - Mitigation: Use server-provided meeting start timestamp, calculate elapsed time client-side relative to server time
+   - Mitigation: Use server-provided meeting start timestamp (server-side Blazor handles authoritative time), calculate elapsed time server-side
 
-3. **WebSocket scaling limits**: What if 100 attendees join one meeting?
+3. **SignalR scaling limits**: What if 100 attendees join one meeting?
    - Risk: Server overwhelmed, connections dropped
-   - Mitigation: Document capacity limits (50 attendees per meeting), load testing required
+   - Mitigation: Document capacity limits (50 attendees per meeting), Blazor Server circuit limits, load testing required
 
 4. **Browser tab throttling**: What if attendee's browser throttles inactive tabs?
-   - Risk: Timers pause when tab is inactive, attendee rejoins to find meeting far ahead
-   - Mitigation: Use Page Visibility API to detect tab switches, force resync on reactivation
+   - Risk: Blazor circuit may disconnect, timers pause when tab is inactive
+   - Mitigation: Configure Blazor circuit timeout appropriately, force resync on reactivation via OnAfterRender lifecycle
 
 ### Edge Cases
 
 5. **Rapid-fire facilitator actions**: What if facilitator clicks "Start Stage" 10 times in 1 second?
-   - Behavior: Debounce actions client-side (500ms), only send last action, show "Processing..." state
+   - Behavior: Debounce actions server-side using MediatR pipeline behaviors (500ms), only process last command, show "Processing..." state
 
 6. **Network jitter causes message reordering**: What if stage transition message arrives before timer start message?
-   - Behavior: Server assigns sequence numbers to all messages, clients apply in order regardless of arrival time
+   - Behavior: Server-side command handlers in MediatR ensure transactional consistency; SignalR guarantees message order within a connection
 
 7. **Attendee joins in the middle of a stage**: What if an attendee joins 10 minutes into a 15-minute stage?
-   - Behavior: New attendee receives full state snapshot including stage start timestamp, calculates elapsed time correctly
+   - Behavior: New Blazor circuit receives full state snapshot via OnInitializedAsync, server calculates elapsed time
 
 8. **Facilitator device dies mid-meeting**: What if facilitator's laptop crashes?
-   - Behavior: Meeting state persists on server, facilitator can reconnect from new device using facilitator link, resume control
+   - Behavior: Meeting state persists in PostgreSQL via EF Core, facilitator can reconnect from new device using facilitator link, resume control
 
 9. **Concurrent facilitator link access**: What if someone steals facilitator link and both control meeting?
-   - Behavior: Both see the same state, last action wins, no access revocation (security through obscurity)
+   - Behavior: Both Blazor circuits see the same state, last command wins (optimistic concurrency in EF Core), no access revocation (security through obscurity)
 
-10. **Zombie connections**: What if client connection hangs without proper close?
-    - Behavior: Server implements connection timeout (30s of no heartbeat), removes stale connections from count
+10. **Zombie connections**: What if Blazor circuit hangs without proper close?
+    - Behavior: Blazor Server implements circuit timeout (configurable, default 30s), removes stale connections from count
 
 ## UI/UX Requirements
 
@@ -122,63 +122,82 @@ Multiple attendees and the facilitator must see consistent meeting state (stage 
 
 ### Internal Features
 
-- **Meeting Creation**: Establishes session identifiers for sync channels
-- **All Features**: Every interactive feature depends on reliable sync
-- **Timer System**: Critically dependent on synchronized clocks
+- **Meeting Creation**: Establishes session identifiers and meeting entities via EF Core
+- **All Features**: Every interactive feature depends on reliable sync via SignalR
+- **Timer System**: Critically dependent on server-side time (Blazor Server handles authoritative timing)
 
 ### External Systems
 
-- **WebSocket Server**: Push-based real-time messaging
-- **HTTP Polling Fallback**: For networks that block WebSockets
-- **Server-Side State Store**: Authoritative meeting state (Redis or equivalent)
-- **Session Management**: Track connected clients, handle reconnections
+- **SignalR Hub**: Real-time bi-directional messaging (built into Blazor Server)
+- **Long Polling Fallback**: For networks that block WebSockets (automatic SignalR fallback)
+- **Server-Side State Store**: Authoritative meeting state in PostgreSQL via EF Core
+- **Session Management**: Track connected Blazor circuits, handle reconnections via PostgreSQL session table
 
 ## Technical Requirements
 
 ### Protocol Specifications
 
-**WebSocket Message Format:**
-```json
+**Technology Stack:**
+- **.NET 9** with ASP.NET Core
+- **Blazor Server** (no separate API - server-side rendering with SignalR)
+- **EF Core 9** with PostgreSQL for persistence
+- **MediatR** for CQRS command/query handling
+- **Repository Pattern** for data access abstraction
+
+**SignalR Hub Methods:**
+```csharp
+public interface IMeetingHub
 {
-  "type": "stage_started" | "concern_raised" | "question_answered" | ...,
-  "timestamp": 1705601234567,
-  "sequence_number": 42,
-  "meeting_id": "abc123",
-  "payload": { ... }
+    Task StageStarted(StageStartedEvent evt);
+    Task ConcernRaised(ConcernRaisedEvent evt);
+    Task QuestionAnswered(QuestionAnsweredEvent evt);
+    Task MeetingStateChanged(MeetingStateSnapshot snapshot);
 }
 ```
 
-**Heartbeat Mechanism:**
-- Client sends heartbeat ping every 15 seconds
-- Server responds with pong + current server timestamp
-- Detect clock drift by comparing round-trip time and timestamp delta
+**Event Format (MediatR Notifications):**
+```csharp
+public record StageStartedEvent(
+    string MeetingId,
+    string StageId,
+    DateTime Timestamp,
+    long SequenceNumber
+) : INotification;
+```
 
-**State Snapshot Format:**
-```json
+**Blazor Circuit Heartbeat:**
+- SignalR automatically maintains connection via ping/pong mechanism
+- Blazor Server circuit timeout configurable in `builder.Services.AddServerSideBlazor()`
+- Default circuit timeout: 30 seconds of inactivity
+
+**State Snapshot (Blazor Component State):**
+```csharp
+public class MeetingStateSnapshot
 {
-  "meeting_id": "abc123",
-  "current_stage_id": "stage_5",
-  "stage_start_timestamp": 1705601234567,
-  "server_timestamp": 1705601500000,
-  "concerns": [...],
-  "active_questions": [...],
-  "attendee_count": 12
+    public string MeetingId { get; init; }
+    public string? CurrentStageId { get; init; }
+    public DateTime? StageStartTimestamp { get; init; }
+    public DateTime ServerTimestamp { get; init; }
+    public List<ConcernDto> Concerns { get; init; }
+    public List<QuestionDto> ActiveQuestions { get; init; }
+    public int AttendeeCount { get; init; }
 }
 ```
 
 ### Performance Requirements
 
-- **Message Delivery Latency**: 95th percentile < 2 seconds
-- **Reconnection Time**: Auto-reconnect within 10 seconds of network recovery
+- **Message Delivery Latency**: 95th percentile < 2 seconds via SignalR
+- **Reconnection Time**: Auto-reconnect within 10 seconds of network recovery (Blazor Server automatic reconnection)
 - **State Snapshot Size**: < 100KB for typical meeting (50 attendees, 10 stages, 20 concerns)
-- **Concurrent Connections**: Support 50 clients per meeting without degradation
+- **Concurrent Blazor Circuits**: Support 50 concurrent circuits per meeting without degradation
 
 ### Reliability Requirements
 
-- **Message Delivery Guarantee**: At-least-once delivery (idempotent handlers to handle duplicates)
-- **Connection Timeout**: Detect dead connections within 30 seconds
-- **Fallback Polling Rate**: 2-second interval when WebSocket unavailable
-- **Reconnection Retry**: Exponential backoff up to 30 seconds, then constant 30-second retries
+- **Message Delivery Guarantee**: SignalR provides at-least-once delivery; MediatR command handlers are idempotent
+- **Circuit Timeout**: Blazor Server detects dead circuits within 30 seconds (configurable)
+- **Fallback Long Polling**: Automatic SignalR fallback when WebSocket unavailable
+- **Reconnection Retry**: Blazor Server automatic exponential backoff up to 30 seconds, then constant retries
+- **State Persistence**: All meeting state persisted to PostgreSQL via EF Core for recovery after server restart
 
 ## Testing Scenarios
 
@@ -189,9 +208,9 @@ Multiple attendees and the facilitator must see consistent meeting state (stage 
 
 ### Failure Cases
 
-1. **Network drop simulation**: Disconnect attendee Wi-Fi → See "Disconnected" banner → Reconnect Wi-Fi → Auto-reconnect within 10s
-2. **WebSocket blocked**: Load meeting behind corporate firewall → WebSocket fails → Fallback to polling activates
-3. **Server restart**: Restart server mid-meeting → All clients disconnect → Clients reconnect → State persists from database
+1. **Network drop simulation**: Disconnect attendee Wi-Fi → See "Disconnected" banner → Reconnect Wi-Fi → Blazor circuit auto-reconnect within 10s
+2. **WebSocket blocked**: Load meeting behind corporate firewall → SignalR WebSocket fails → Automatic fallback to long polling activates
+3. **Server restart**: Restart .NET server mid-meeting → All Blazor circuits disconnect → Clients reconnect → State recovered from PostgreSQL via EF Core
 
 ### Race Conditions
 

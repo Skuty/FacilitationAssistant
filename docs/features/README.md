@@ -101,20 +101,20 @@ docs/features/
 **Time**: 3 hours
 
 **Reading Order**:
-1. [PRD.md](PRD.md) - Product context (15 min)
-2. [real-time-synchronization.md](cross-cutting-concerns/real-time-synchronization.md) - Sync architecture (30 min)
-3. [attendee-identity.md](cross-cutting-concerns/attendee-identity.md) - Session management (30 min)
-4. [error-handling.md](cross-cutting-concerns/error-handling.md) - Error patterns (30 min)
+1. [PRD.md](PRD.md) - Product context (.NET 9 + Blazor Server stack) (15 min)
+2. [real-time-synchronization.md](cross-cutting-concerns/real-time-synchronization.md) - SignalR sync architecture (30 min)
+3. [attendee-identity.md](cross-cutting-concerns/attendee-identity.md) - Session management with EF Core (30 min)
+4. [error-handling.md](cross-cutting-concerns/error-handling.md) - .NET error patterns & MediatR (30 min)
 5. [integration-matrix.md](cross-cutting-concerns/integration-matrix.md) - Feature dependencies (30 min)
 6. [risk-register.md](cross-cutting-concerns/risk-register.md) - Technical risks (30 min)
 7. All 7 feature specs (skim for data models, non-functional requirements) (30 min)
 
 **Key Questions to Answer**:
-- WebSocket + Redis architecture feasible?
-- How to handle clock skew (server-authoritative time)?
-- Database schema design (normalized? denormalized?)
-- Load testing requirements (50 concurrent attendees)?
-- Error reporting infrastructure (Sentry? Rollbar?)
+- SignalR + Blazor Server architecture feasible?
+- How to handle clock skew (server-authoritative time in Blazor Server)?
+- Database schema design with EF Core (normalized? denormalized?)
+- Load testing requirements (50 concurrent Blazor circuits)?
+- Error reporting infrastructure (Serilog? Application Insights?)
 
 ---
 
@@ -122,19 +122,19 @@ docs/features/
 **Time**: 2 hours
 
 **Reading Order**:
-1. [PRD.md](PRD.md) - Product overview (10 min)
-2. [attendee-identity.md](cross-cutting-concerns/attendee-identity.md) - Session localStorage (20 min)
-3. [real-time-synchronization.md](cross-cutting-concerns/real-time-synchronization.md) - WebSocket client (20 min)
-4. [error-handling.md](cross-cutting-concerns/error-handling.md) - Error UX patterns (20 min)
+1. [PRD.md](PRD.md) - Product overview (.NET 9 + Blazor Server) (10 min)
+2. [attendee-identity.md](cross-cutting-concerns/attendee-identity.md) - Session in PostgreSQL (20 min)
+3. [real-time-synchronization.md](cross-cutting-concerns/real-time-synchronization.md) - SignalR Blazor integration (20 min)
+4. [error-handling.md](cross-cutting-concerns/error-handling.md) - .NET error UX patterns (20 min)
 5. Your assigned feature specs (UI/UX Requirements sections) (40 min)
 6. [critical-analysis.md](cross-cutting-concerns/critical-analysis.md) - Mobile UX issues (10 min)
 
 **Key Questions to Answer**:
-- How to implement WebSocket reconnection with exponential backoff?
-- How to store session ID in localStorage securely?
-- Which UI framework? (React? Vue? Vanilla?)
-- Mobile-first or desktop-first responsive design?
-- Accessibility requirements (WCAG 2.1 AA)?
+- How to implement Blazor circuit reconnection handling?
+- How to store session ID in browser storage with Blazor Server?
+- Blazor component patterns for real-time updates (StateHasChanged)?
+- Mobile-first or desktop-first responsive design with Blazor CSS?
+- Accessibility requirements (WCAG 2.1 AA with Blazor)?
 
 ---
 
@@ -142,20 +142,20 @@ docs/features/
 **Time**: 2.5 hours
 
 **Reading Order**:
-1. [PRD.md](PRD.md) - Product overview (10 min)
-2. [real-time-synchronization.md](cross-cutting-concerns/real-time-synchronization.md) - WebSocket server (30 min)
-3. [attendee-identity.md](cross-cutting-concerns/attendee-identity.md) - Session store (30 min)
-4. [error-handling.md](cross-cutting-concerns/error-handling.md) - Idempotency, retries (20 min)
+1. [PRD.md](PRD.md) - Product overview (.NET 9 + Blazor Server) (10 min)
+2. [real-time-synchronization.md](cross-cutting-concerns/real-time-synchronization.md) - SignalR hub (30 min)
+3. [attendee-identity.md](cross-cutting-concerns/attendee-identity.md) - PostgreSQL session store (30 min)
+4. [error-handling.md](cross-cutting-concerns/error-handling.md) - Idempotency, MediatR validation (20 min)
 5. Your assigned feature specs (Data Model sections) (40 min)
-6. [integration-matrix.md](cross-cutting-concerns/integration-matrix.md) - API contracts (20 min)
+6. [integration-matrix.md](cross-cutting-concerns/integration-matrix.md) - Command/Query contracts (20 min)
 7. [risk-register.md](cross-cutting-concerns/risk-register.md) - Data loss risks (10 min)
 
 **Key Questions to Answer**:
-- Database: PostgreSQL? MySQL? MongoDB?
-- Real-time: WebSocket library (Socket.IO? ws?)
-- Session store: Redis? Database table?
-- How to implement idempotency keys?
-- Rate limiting strategy (IP-based? Session-based?)
+- Database: EF Core 9 + PostgreSQL (confirmed in stack)
+- Real-time: SignalR built into Blazor Server
+- Session store: PostgreSQL table via EF Core
+- How to implement idempotency keys in MediatR command handlers?
+- Rate limiting strategy (IP-based via middleware? Session-based?)
 
 ---
 
@@ -217,9 +217,9 @@ docs/features/
 
 ### Technology Constraints
 - **Browser Support**: Chrome, Firefox, Safari, Edge (last 2 versions)
-- **Real-Time Latency**: 95th percentile <2 seconds
-- **Concurrent Attendees**: Support 50 per meeting
-- **Session Persistence**: 48 hours after meeting ends
+- **Real-Time Latency**: 95th percentile <2 seconds via SignalR
+- **Concurrent Attendees**: Support 50 Blazor circuits per meeting
+- **Session Persistence**: 48 hours in PostgreSQL after meeting ends
 - **Data Retention**: 7 days for read-only summary, then deleted
 
 ---
@@ -244,7 +244,7 @@ docs/features/
 
 ### For Developers
 🚨 **Do NOT skip reading cross-cutting-concerns/**
-- Every feature depends on real-time sync, session management, error handling
+- Every feature depends on SignalR real-time sync, session management, error handling
 - Implementing features in isolation will lead to integration failures
 - Read at least: real-time-synchronization.md, attendee-identity.md, error-handling.md
 
@@ -256,9 +256,9 @@ docs/features/
 
 ### For Architects
 🚨 **Do NOT underestimate real-time sync complexity**
-- WebSocket + polling fallback is non-trivial
-- Clock skew requires server-authoritative timestamps
-- Session management across reconnections is complex
+- SignalR with Blazor Server requires proper circuit management
+- Clock skew requires server-authoritative timestamps (Blazor Server handles this)
+- Session management across Blazor circuit reconnections is complex
 
 ---
 

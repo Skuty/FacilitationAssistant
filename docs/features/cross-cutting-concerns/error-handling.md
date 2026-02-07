@@ -17,48 +17,48 @@ Real-time meeting applications experience failures from network issues, server e
 
 ### Client-Side Validation
 
-- **AC1**: Given I am creating a stage with an empty name, When I try to save, Then I see "Stage name is required" error message without server round-trip
-- **AC2**: Given I am setting stage duration to 0, When I enter the value, Then the input shows "Duration must be at least 1 minute" error immediately (on blur)
-- **AC3**: Given I am submitting a custom concern with 9 characters, When I try to submit, Then the submit button is disabled and shows "Minimum 10 characters" below the input
-- **AC4**: Given I exceed character limits (stage name > 100 chars), When I type beyond the limit, Then additional characters are not accepted and counter shows "0 characters remaining"
+- **AC1**: Given I am creating a stage with an empty name, When I try to save, Then I see "Stage name is required" error message via Blazor EditForm validation without server round-trip
+- **AC2**: Given I am setting stage duration to 0, When I enter the value, Then the input shows "Duration must be at least 1 minute" error immediately via Blazor InputNumber validation attribute
+- **AC3**: Given I am submitting a custom concern with 9 characters, When I try to submit, Then the submit button is disabled via Blazor EditForm context and shows "Minimum 10 characters" below the input
+- **AC4**: Given I exceed character limits (stage name > 100 chars), When I type beyond the limit, Then additional characters are not accepted via InputText maxlength and counter shows "0 characters remaining"
 
 ### Network Error Handling
 
-- **AC5**: Given I submit an action (raise concern, answer question), When the network request fails with timeout, Then I see "Connection timeout - Retrying automatically..." message
-- **AC6**: Given an action fails, When automatic retry succeeds within 3 attempts, Then the error message is replaced with "Action completed" success message
-- **AC7**: Given an action fails 3 times, When automatic retry is exhausted, Then I see "Action failed - Please try again" with manual "Retry" button
-- **AC8**: Given I am offline, When I try to perform an action, Then I see "You are offline - Action will be retried when connection is restored" message
+- **AC5**: Given I submit an action via MediatR command (raise concern, answer question), When the command handler experiences timeout, Then I see "Connection timeout - Retrying automatically..." message in Blazor component
+- **AC6**: Given a command fails, When automatic retry (via Polly retry policy) succeeds within 3 attempts, Then the error message is replaced with "Action completed" success message
+- **AC7**: Given a command fails 3 times, When Polly retry is exhausted, Then I see "Action failed - Please try again" with manual "Retry" button in component
+- **AC8**: Given Blazor circuit is disconnected, When I try to perform an action, Then I see "You are offline - Action will be retried when connection is restored" message (Blazor reconnection UI)
 
 ### Server Error Responses
 
-- **AC9**: Given the server returns 500 Internal Server Error, When I receive the response, Then I see "Something went wrong - Our team has been notified. Please try again in a moment."
-- **AC10**: Given the server returns 403 Forbidden (e.g., attendee tries to start stage), When I receive the response, Then I see "You don't have permission to perform this action"
-- **AC11**: Given the server returns 404 Not Found (invalid meeting ID), When I access the link, Then I see "Meeting not found - This link may be expired or invalid"
-- **AC12**: Given the server returns 429 Too Many Requests (rate limiting), When I receive the response, Then I see "Too many actions - Please wait X seconds before trying again" with countdown timer
+- **AC9**: Given the MediatR command handler throws unhandled exception, When response is returned, Then Blazor error boundary shows "Something went wrong - Our team has been notified. Please try again in a moment."
+- **AC10**: Given the command handler throws UnauthorizedAccessException (e.g., attendee tries to start stage), When I receive the response, Then I see "You don't have permission to perform this action"
+- **AC11**: Given meeting query returns null (invalid meeting GUID), When I access the link, Then Blazor component shows "Meeting not found - This link may be expired or invalid"
+- **AC12**: Given ASP.NET Core rate limiting middleware rejects request (429), When I receive the response, Then I see "Too many actions - Please wait X seconds before trying again" with countdown timer
 
 ### Data Conflict Resolution
 
-- **AC13**: Given I edit a note while another update occurs, When I save, Then I see "This note was updated by someone else - Reload to see changes?" with option to reload or overwrite
-- **AC14**: Given the facilitator starts Stage 3 while I'm answering a Stage 2 question, When stage transition occurs, Then my answer is saved to Stage 2 (no data loss) and I see "Stage changed - Your answer was saved"
-- **AC15**: Given I vote on a concern that was just deleted, When I submit my vote, Then I see "This concern was removed" and my vote is discarded gracefully
+- **AC13**: Given I edit a note while another update occurs, When command handler detects DbUpdateConcurrencyException, Then I see "This note was updated by someone else - Reload to see changes?" with option to reload or overwrite
+- **AC14**: Given the facilitator starts Stage 3 while I'm answering a Stage 2 question, When stage transition SignalR event occurs, Then my answer command saves to Stage 2 in PostgreSQL (no data loss) and I see "Stage changed - Your answer was saved"
+- **AC15**: Given I vote on a concern that was just deleted, When command handler queries PostgreSQL, Then I see "This concern was removed" and my vote command is rejected gracefully via validation
 
 ### Degraded Functionality Handling
 
-- **AC16**: Given WebSocket connection fails and polling fallback activates, When I view the interface, Then I see "Limited connectivity - Updates may be delayed" warning banner
-- **AC17**: Given real-time sync is unavailable, When I am a facilitator, Then stage controls still function with manual refresh prompt: "Action saved - Attendees may need to refresh to see changes"
-- **AC18**: Given the server is overloaded (high latency), When actions take >5 seconds, Then I see "Server is experiencing high load - Your action is still processing" message with spinner
+- **AC16**: Given SignalR connection fails and long polling fallback activates, When I view the Blazor component, Then I see "Limited connectivity - Updates may be delayed" warning banner
+- **AC17**: Given SignalR hub is unavailable, When I am a facilitator, Then stage commands still execute with manual refresh prompt in component: "Action saved - Attendees may need to refresh to see changes"
+- **AC18**: Given the server is overloaded (high EF Core query latency), When command handlers take >5 seconds, Then I see "Server is experiencing high load - Your action is still processing" message with Blazor spinner
 
 ### State Recovery After Failures
 
-- **AC19**: Given the server crashes mid-meeting, When the server restarts and I reconnect, Then I receive the last persisted meeting state (stage, timer, concerns, questions)
-- **AC20**: Given my browser crashes, When I reopen the attendee link, Then my session is restored from localStorage and I see the current meeting state
-- **AC21**: Given the facilitator's connection drops for 60 seconds, When they reconnect, Then they see "Reconnected - Meeting state restored" and retain facilitator controls
+- **AC19**: Given the .NET server crashes mid-meeting, When the server restarts and Blazor circuit reconnects, Then I receive the last persisted meeting state from PostgreSQL (stage, timer, concerns, questions)
+- **AC20**: Given my browser crashes, When I reopen the attendee link, Then my session is restored via JSInterop from localStorage and Blazor circuit loads current meeting state from server
+- **AC21**: Given the facilitator's Blazor circuit drops for 60 seconds, When they reconnect, Then they see "Reconnected - Meeting state restored" and retain facilitator controls validated against PostgreSQL
 
 ### Error Reporting & Monitoring
 
-- **AC22**: Given a critical error occurs (unexpected exception), When the error is caught, Then an error report is sent to the server with: error message, stack trace, user action, meeting ID, timestamp
-- **AC23**: Given I am a facilitator, When multiple attendees experience errors (>30% of connected attendees), Then I see an alert "Some attendees may be experiencing technical issues"
-- **AC24**: Given errors are occurring, When I view error messages, Then they include a unique error ID (e.g., "Error ID: ERR-2026-0118-1234") for support reference
+- **AC22**: Given a critical error occurs (unexpected exception in command handler), When the error is caught by MediatR pipeline behavior, Then error details are logged to Serilog/Application Insights with: error message, stack trace, user action, meeting GUID, timestamp
+- **AC23**: Given I am a facilitator, When multiple attendees experience SignalR disconnections (>30% of connected circuits), Then I see an alert "Some attendees may be experiencing technical issues" in component
+- **AC24**: Given errors are occurring, When Blazor component displays error messages, Then they include a unique error ID (e.g., "Error ID: ERR-{guid}") for support reference
 
 ## Out of Scope
 
@@ -75,19 +75,19 @@ Real-time meeting applications experience failures from network issues, server e
 
 1. **Silent failures**: What if an error occurs but no error message is shown?
    - Risk: User assumes action succeeded, data is lost, meeting state diverges
-   - Mitigation: Global error boundary catches all uncaught exceptions, shows generic error message
+   - Mitigation: Blazor ErrorBoundary component catches all uncaught exceptions, shows generic error message
 
 2. **Error message fatigue**: What if too many errors cause users to ignore all warnings?
    - Risk: Users dismiss critical errors (e.g., data loss warnings), make destructive choices
-   - Mitigation: Error severity levels (info, warning, critical), only critical errors block actions
+   - Mitigation: Error severity levels (info, warning, critical), only critical errors block actions via Blazor component state
 
-3. **Race condition on retry**: What if automatic retry creates duplicate actions (e.g., two concerns raised)?
+3. **Race condition on retry**: What if Polly automatic retry creates duplicate actions (e.g., two concerns raised)?
    - Risk: Spam, confused facilitator, poor user experience
-   - Mitigation: Idempotency keys on all mutations, server deduplicates within 5-second window
+   - Mitigation: Idempotency keys on all MediatR commands, PostgreSQL unique constraints deduplicate within transaction
 
 4. **Cascading failures**: What if one component's error triggers errors in dependent components?
    - Risk: Error message avalanche, application becomes unusable
-   - Mitigation: Circuit breaker pattern, disable dependent features when upstream fails
+   - Mitigation: Circuit breaker pattern via Polly, disable dependent Blazor components when upstream fails
 
 ### Edge Cases
 

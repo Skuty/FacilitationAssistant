@@ -152,8 +152,13 @@ Online meetings lack structure, timing awareness, and real-time feedback mechani
 ## Technical Constraints
 
 - Must work in modern browsers (Chrome, Firefox, Safari, Edge - last 2 versions)
-- No browser plugins or extensions required
-- Graceful degradation for older browsers
+- **.NET 9** with ASP.NET Core runtime required
+- **Blazor Server** architecture (server-side rendering with SignalR, no separate API)
+- **EF Core 9** with PostgreSQL for data persistence
+- **MediatR** for CQRS command/query handling
+- **Repository Pattern** for data access abstraction
+- No browser plugins or extensions required for end users
+- Graceful degradation for older browsers (SignalR automatic fallback to long polling)
 - Mobile browser support (iOS Safari, Android Chrome)
 
 ## Risk Assessment
@@ -161,19 +166,19 @@ Online meetings lack structure, timing awareness, and real-time feedback mechani
 ### High-Priority Risks
 
 1. **Real-time synchronization failures** → Attendees see stale data
-   - Mitigation: WebSocket fallback to polling, visible sync status indicator
+   - Mitigation: SignalR automatic fallback to long polling, visible sync status indicator on Blazor components
 
 2. **Link sharing security** → Unauthorized attendee access, link leakage
    - Mitigation: Time-limited links, facilitator can end meeting, no sensitive defaults
 
 3. **Facilitator device failure** → Meeting becomes uncontrollable
-   - Mitigation: Facilitator link reusable from different device, meeting state persists
+   - Mitigation: Facilitator link reusable from different device, meeting state persists in PostgreSQL via EF Core
 
 4. **Overwhelming concern notifications** → Facilitator distraction
    - Mitigation: Collapsible concern panel, digest view, mute option
 
 5. **Time zone confusion** → Meeting timing displayed incorrectly
-   - Mitigation: Use relative timers (countdown), not absolute timestamps
+   - Mitigation: Use relative timers (countdown), server-side time management in Blazor Server
 
 ### Medium-Priority Risks
 
@@ -185,10 +190,11 @@ Online meetings lack structure, timing awareness, and real-time feedback mechani
 
 ## Dependencies
 
-- **Real-time communication infrastructure**: WebSocket or equivalent
-- **Unique ID generation**: For meeting links
-- **Client-side time synchronization**: For accurate countdowns
-- **Browser notification API**: For facilitator messages (optional enhancement)
+- **Real-time communication infrastructure**: SignalR (built into Blazor Server) for bi-directional communication
+- **Unique ID generation**: For meeting links (GUID generation in .NET)
+- **Server-side time management**: .NET DateTime and Timer services for accurate countdowns
+- **Database**: PostgreSQL with EF Core 9 for state persistence
+- **Command/Query Processing**: MediatR for CQRS pattern implementation
 
 ## Future Enhancements (Post-v1.0)
 
