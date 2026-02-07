@@ -207,11 +207,134 @@ else
                                 @GetOverallProgress()%
                             </div>
                         </div>
+                        
+                        @if (pendingQuestions.Any())
+                        {
+                            <div class="mt-3">
+                                <span class="badge bg-info">
+                                    ❓ @pendingQuestions.Count pending question@(pendingQuestions.Count > 1 ? "s" : "")
+                                </span>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    @* Question Modal *@
+    @if (currentQuestion != null && !showConfirmation)
+    {
+        <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">❓ Question</h5>
+                        @if (pendingQuestions.Count > 1)
+                        {
+                            <span class="badge bg-secondary">+@(pendingQuestions.Count - 1) more</span>
+                        }
+                    </div>
+                    <div class="modal-body">
+                        <p class="fw-bold">@currentQuestion.Text</p>
+
+                        @if (currentQuestion.AnswerType == QuestionAnswerType.SingleChoice)
+                        {
+                            <div class="list-group">
+                                @foreach (var option in currentQuestion.Options.OrderBy(o => o.OrderIndex))
+                                {
+                                    <label class="list-group-item list-group-item-action">
+                                        <input type="radio" 
+                                               name="singleChoice" 
+                                               value="@option.Id" 
+                                               @onchange="@(() => selectedSingleChoice = option.Id)"
+                                               checked="@(selectedSingleChoice == option.Id)">
+                                        <span class="ms-2">@option.OptionText</span>
+                                    </label>
+                                }
+                            </div>
+                        }
+                        else if (currentQuestion.AnswerType == QuestionAnswerType.MultipleChoice)
+                        {
+                            <div class="list-group">
+                                @foreach (var option in currentQuestion.Options.OrderBy(o => o.OrderIndex))
+                                {
+                                    <label class="list-group-item">
+                                        <input type="checkbox" 
+                                               value="@option.Id" 
+                                               @onchange="@((e) => ToggleMultipleChoice(option.Id, (bool)e.Value!))"
+                                               checked="@(selectedMultipleChoices.Contains(option.Id))">
+                                        <span class="ms-2">@option.OptionText</span>
+                                    </label>
+                                }
+                            </div>
+                            @if (currentQuestion.MaxSelectableOptions != null)
+                            {
+                                <small class="text-muted">Select up to @currentQuestion.MaxSelectableOptions options</small>
+                            }
+                        }
+                        else if (currentQuestion.AnswerType == QuestionAnswerType.FreeText)
+                        {
+                            <textarea class="form-control" 
+                                      @bind="freeTextAnswer" 
+                                      rows="4" 
+                                      maxlength="1000" 
+                                      placeholder="Type your answer..."></textarea>
+                            <small class="text-muted">@freeTextAnswer.Length / 1000 characters</small>
+                        }
+                        else if (currentQuestion.AnswerType == QuestionAnswerType.Scale)
+                        {
+                            <div class="text-center">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <small class="text-muted">@currentQuestion.ScaleMinLabel</small>
+                                    <small class="text-muted">@currentQuestion.ScaleMaxLabel</small>
+                                </div>
+                                <div class="btn-group w-100" role="group">
+                                    @for (int i = currentQuestion.ScaleMin ?? 1; i <= (currentQuestion.ScaleMax ?? 5); i++)
+                                    {
+                                        var value = i; // Capture for lambda
+                                        <button type="button" 
+                                                class="btn @(scaleValue == value ? "btn-primary" : "btn-outline-primary")"
+                                                @onclick="@(() => scaleValue = value)">
+                                            @value
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" 
+                                class="btn btn-link text-muted" 
+                                @onclick="SkipQuestion">
+                            Skip
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary" 
+                                @onclick="SubmitAnswer"
+                                disabled="@(!IsAnswerValid())">
+                            @(isSubmitting ? "Submitting..." : "Submit")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Confirmation Message *@
+    @if (showConfirmation)
+    {
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+            <div class="toast show" role="alert">
+                <div class="toast-header bg-success text-white">
+                    <strong class="me-auto">✅ Success</strong>
+                </div>
+                <div class="toast-body">
+                    Answer submitted successfully!
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
@@ -226,6 +349,21 @@ else
     private string newNoteContent = string.Empty;
     private string selectedConcernType = string.Empty;
     private string customConcernText = string.Empty;
+
+    // Question UI fields
+    private List<Question> pendingQuestions = new();
+    private Question? currentQuestion = null;
+    private HashSet<Guid> answeredQuestionIds = new();
+    
+    // Answer fields
+    private Guid? selectedSingleChoice = null;
+    private HashSet<Guid> selectedMultipleChoices = new();
+    private string freeTextAnswer = string.Empty;
+    private int? scaleValue = null;
+    
+    // UI state
+    private bool isSubmitting = false;
+    private bool showConfirmation = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -242,6 +380,7 @@ else
         refreshTimer = new System.Threading.Timer(async _ =>
         {
             await LoadMeeting();
+            await LoadActiveQuestions();
             
             // Check if meeting ended during the session
             if (meeting?.Status == MeetingStatus.Ended)
@@ -258,6 +397,163 @@ else
     {
         var query = new GetMeetingByTokenQuery(Token, false);
         meeting = await Mediator.Send(query);
+    }
+
+    private async Task LoadActiveQuestions()
+    {
+        if (meeting == null) return;
+        
+        var query = new GetActiveQuestionsForAttendeeQuery(meeting.Id, sessionId);
+        var activeQuestions = await Mediator.Send(query);
+        
+        // Filter out already answered questions
+        pendingQuestions = activeQuestions
+            .Where(q => !answeredQuestionIds.Contains(q.Id))
+            .ToList();
+        
+        // Show first question if we don't have a current one
+        if (currentQuestion == null && pendingQuestions.Any())
+        {
+            currentQuestion = pendingQuestions.First();
+            ResetAnswerFields();
+        }
+    }
+
+    private void ResetAnswerFields()
+    {
+        selectedSingleChoice = null;
+        selectedMultipleChoices.Clear();
+        freeTextAnswer = string.Empty;
+        scaleValue = null;
+    }
+
+    private void ToggleMultipleChoice(Guid optionId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            // Check if we've reached the max selectable options
+            if (currentQuestion?.MaxSelectableOptions != null && 
+                selectedMultipleChoices.Count >= currentQuestion.MaxSelectableOptions)
+            {
+                return; // Don't add more
+            }
+            selectedMultipleChoices.Add(optionId);
+        }
+        else
+        {
+            selectedMultipleChoices.Remove(optionId);
+        }
+    }
+
+    private bool IsAnswerValid()
+    {
+        if (currentQuestion == null) return false;
+
+        return currentQuestion.AnswerType switch
+        {
+            QuestionAnswerType.SingleChoice => selectedSingleChoice.HasValue,
+            QuestionAnswerType.MultipleChoice => selectedMultipleChoices.Any(),
+            QuestionAnswerType.FreeText => !string.IsNullOrWhiteSpace(freeTextAnswer),
+            QuestionAnswerType.Scale => scaleValue.HasValue,
+            _ => false
+        };
+    }
+
+    private async Task SubmitAnswer()
+    {
+        if (currentQuestion == null || isSubmitting || !IsAnswerValid()) return;
+
+        isSubmitting = true;
+
+        try
+        {
+            List<Guid>? answerChoiceIds = null;
+            string? answerText = null;
+            int? answerScaleValue = null;
+
+            switch (currentQuestion.AnswerType)
+            {
+                case QuestionAnswerType.SingleChoice:
+                    answerChoiceIds = selectedSingleChoice.HasValue 
+                        ? new List<Guid> { selectedSingleChoice.Value } 
+                        : null;
+                    break;
+                case QuestionAnswerType.MultipleChoice:
+                    answerChoiceIds = selectedMultipleChoices.ToList();
+                    break;
+                case QuestionAnswerType.FreeText:
+                    answerText = freeTextAnswer;
+                    break;
+                case QuestionAnswerType.Scale:
+                    answerScaleValue = scaleValue;
+                    break;
+            }
+
+            var command = new SubmitQuestionResponseCommand(
+                currentQuestion.Id,
+                sessionId,
+                answerChoiceIds,
+                answerText,
+                answerScaleValue,
+                QuestionResponseStatus.Submitted
+            );
+
+            await Mediator.Send(command);
+            
+            // Mark as answered
+            answeredQuestionIds.Add(currentQuestion.Id);
+            
+            // Show confirmation
+            showConfirmation = true;
+            
+            // Move to next question
+            MoveToNextQuestion();
+            
+            // Hide confirmation after 2 seconds
+            _ = Task.Delay(2000).ContinueWith(_ => 
+            {
+                showConfirmation = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task SkipQuestion()
+    {
+        if (currentQuestion == null) return;
+
+        var command = new SubmitQuestionResponseCommand(
+            currentQuestion.Id,
+            sessionId,
+            null,
+            null,
+            null,
+            QuestionResponseStatus.Skipped
+        );
+
+        await Mediator.Send(command);
+        
+        // Mark as answered (even though skipped)
+        answeredQuestionIds.Add(currentQuestion.Id);
+        
+        MoveToNextQuestion();
+    }
+
+    private void MoveToNextQuestion()
+    {
+        // Remove current question from pending list
+        if (currentQuestion != null)
+        {
+            pendingQuestions.Remove(currentQuestion);
+        }
+        
+        // Show next question if available
+        currentQuestion = pendingQuestions.FirstOrDefault();
+        ResetAnswerFields();
     }
 
     private async Task AddNote()

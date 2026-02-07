@@ -73,12 +73,20 @@ This document outlines the step-by-step plan for implementing the remaining feat
         - Results are shown in real-time with response counts and percentages
         - Successfully tested with Playwright automation
 
-- [ ] **Attendee Question Interface**
+- [x] **Attendee Question Interface**
     - Feature: Attendees see and answer questions.
     - Spec: [Polling System Spec](docs/features/polling-system/spec.md) (AC12-AC20)
     - Details:
         - Modal/Panel overlay when question is triggered.
         - Answer submission logic.
+    - Implementation:
+        - Added question modal overlay to Attendee view
+        - Displays active questions one at a time (FIFO queue)
+        - Supports all question types: Single Choice, Multiple Choice, Free Text, Scale
+        - Submit and Skip functionality with response tracking
+        - Shows "pending questions" badge in meeting progress card
+        - Confirmation toast message after successful submission
+        - Successfully tested: application builds and all tests pass
 
 - [ ] **Real-time Results**
     - Feature: Visualization of poll results.
