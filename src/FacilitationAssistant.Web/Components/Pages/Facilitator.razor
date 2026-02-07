@@ -1,0 +1,371 @@
+@page "/facilitator/{token}"
+@rendermode InteractiveServer
+@using FacilitationAssistant.Core.Entities
+@using FacilitationAssistant.Core.Queries
+@using FacilitationAssistant.Core.Commands
+@using MediatR
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+
+<PageTitle>Facilitator View - @(meeting?.Title ?? "Meeting")</PageTitle>
+
+@if (meeting == null)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3">Loading meeting...</p>
+    </div>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 bg-primary text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">🎯 @meeting.Title</h4>
+                        <small>Facilitator View | Status: @meeting.Status</small>
+                    </div>
+                    <div>
+                        @if (meeting.Status == MeetingStatus.Setup)
+                        {
+                            <button class="btn btn-light btn-sm me-2" @onclick="ShowLinks">📎 Share Links</button>
+                            <button class="btn btn-success" @onclick="StartMeeting" disabled="@(!meeting.Stages.Any())">
+                                ▶️ Start Meeting
+                            </button>
+                        }
+                        else if (meeting.Status == MeetingStatus.Active)
+                        {
+                            <span class="badge bg-light text-primary fs-6">
+                                ⏱️ @GetElapsedTime()
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (meeting.Status == MeetingStatus.Setup)
+        {
+            <div class="row mt-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Agenda Builder</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (!meeting.Stages.Any())
+                            {
+                                <div class="alert alert-info">
+                                    Add at least one agenda stage to start the meeting.
+                                </div>
+                            }
+
+                            @foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
+                            {
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
+                                        <small class="text-muted">Duration: @stage.PlannedDurationMinutes min</small>
+                                        @if (!string.IsNullOrEmpty(stage.Description))
+                                        {
+                                            <p class="mb-0 mt-2"><small>@stage.Description</small></p>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="card mt-3">
+                                <div class="card-body">
+                                    <h6>Add New Stage</h6>
+                                    <div class="mb-2">
+                                        <input type="text" class="form-control" placeholder="Stage name" @bind="newStageName" maxlength="100" />
+                                    </div>
+                                    <div class="mb-2">
+                                        <textarea class="form-control" placeholder="Description (optional)" @bind="newStageDescription" rows="2" maxlength="500"></textarea>
+                                    </div>
+                                    <div class="mb-2">
+                                        <input type="number" class="form-control" placeholder="Duration (minutes)" @bind="newStageDuration" min="1" max="240" />
+                                    </div>
+                                    <button class="btn btn-primary btn-sm" @onclick="AddStage">Add Stage</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    @if (showLinksPanel)
+                    {
+                        <div class="card">
+                            <div class="card-header bg-warning">
+                                <h6 class="mb-0">⚠️ Meeting Links</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-danger">Facilitator Link (Keep Private!)</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" readonly value="@GetFacilitatorUrl()" />
+                                        <button class="btn btn-outline-secondary" @onclick="() => CopyToClipboard(GetFacilitatorUrl())">Copy</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label fw-bold">Attendee Link (Share This)</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" readonly value="@GetAttendeeUrl()" />
+                                        <button class="btn btn-outline-secondary" @onclick="() => CopyToClipboard(GetAttendeeUrl())">Copy</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else if (meeting.Status == MeetingStatus.Active)
+        {
+            <div class="row mt-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Agenda Progress</h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
+                            {
+                                <div class="card mb-3 @GetStageClass(stage)">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge @GetStatusBadgeClass(stage.Status)">@stage.Status</span>
+                                                    <small class="text-muted">Planned: @stage.PlannedDurationMinutes min</small>
+                                                    @if (stage.Status == StageStatus.Active)
+                                                    {
+                                                        <span class="text-primary fw-bold">@GetStageElapsedTime(stage)</span>
+                                                    }
+                                                    @if (stage.Status == StageStatus.Completed)
+                                                    {
+                                                        <span class="text-success">Completed in @(stage.ActualDurationSeconds / 60) min</span>
+                                                    }
+                                                </div>
+                                                @if (stage.Status == StageStatus.Active)
+                                                {
+                                                    <div class="progress mt-2" style="height: 20px;">
+                                                        <div class="progress-bar @GetProgressBarClass(stage)" 
+                                                             style="width: @GetProgressPercentage(stage)%">
+                                                            @GetProgressPercentage(stage)%
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="btn-group">
+                                                @if (stage.Status == StageStatus.NotStarted || stage.Status == StageStatus.Completed)
+                                                {
+                                                    <button class="btn btn-success btn-sm" @onclick="() => StartStage(stage.Id)">▶️ Start</button>
+                                                }
+                                                @if (stage.Status == StageStatus.Active)
+                                                {
+                                                    <button class="btn btn-danger btn-sm" @onclick="() => EndStage(stage.Id)">⏹️ End</button>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">📊 Meeting Stats</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>Total Stages:</strong> @meeting.Stages.Count</p>
+                            <p class="mb-1"><strong>Completed:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.Completed)</p>
+                            <p class="mb-1"><strong>Notes:</strong> @meeting.Notes.Count(n => n.IsPublic)</p>
+                            <p class="mb-0"><strong>Concerns:</strong> @meeting.Concerns.Count(c => !c.IsDismissed)</p>
+                        </div>
+                    </div>
+
+                    @if (meeting.Concerns.Any(c => !c.IsDismissed))
+                    {
+                        <div class="card">
+                            <div class="card-header bg-warning">
+                                <h6 class="mb-0">⚠️ Active Concerns (@meeting.Concerns.Count(c => !c.IsDismissed))</h6>
+                            </div>
+                            <div class="card-body">
+                                @foreach (var concern in meeting.Concerns.Where(c => !c.IsDismissed).OrderByDescending(c => c.CreatedAt))
+                                {
+                                    <div class="alert alert-warning">
+                                        <strong>@concern.ConcernType</strong>
+                                        @if (!string.IsNullOrEmpty(concern.CustomText))
+                                        {
+                                            <p class="mb-0">@concern.CustomText</p>
+                                        }
+                                        <small class="text-muted">@concern.CreatedAt.ToString("HH:mm:ss")</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private Meeting? meeting;
+    private bool showLinksPanel = false;
+    private System.Threading.Timer? refreshTimer;
+
+    // Stage builder fields
+    private string newStageName = string.Empty;
+    private string newStageDescription = string.Empty;
+    private int newStageDuration = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMeeting();
+        
+        // Refresh every second for time updates
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private async Task LoadMeeting()
+    {
+        var query = new GetMeetingByTokenQuery(Token, true);
+        meeting = await Mediator.Send(query);
+    }
+
+    private async Task StartMeeting()
+    {
+        if (meeting == null) return;
+
+        await Mediator.Send(new StartMeetingCommand(meeting.Id));
+        await LoadMeeting();
+    }
+
+    private async Task AddStage()
+    {
+        if (meeting == null || string.IsNullOrWhiteSpace(newStageName)) return;
+
+        var command = new AddAgendaStageCommand(
+            meeting.Id,
+            newStageName,
+            string.IsNullOrWhiteSpace(newStageDescription) ? null : newStageDescription,
+            newStageDuration,
+            meeting.Stages.Count
+        );
+
+        await Mediator.Send(command);
+        await LoadMeeting();
+
+        // Reset form
+        newStageName = string.Empty;
+        newStageDescription = string.Empty;
+        newStageDuration = 10;
+    }
+
+    private async Task StartStage(Guid stageId)
+    {
+        if (meeting == null) return;
+        await Mediator.Send(new StartStageCommand(meeting.Id, stageId));
+        await LoadMeeting();
+    }
+
+    private async Task EndStage(Guid stageId)
+    {
+        if (meeting == null) return;
+        await Mediator.Send(new EndStageCommand(meeting.Id, stageId));
+        await LoadMeeting();
+    }
+
+    private void ShowLinks()
+    {
+        showLinksPanel = !showLinksPanel;
+    }
+
+    private string GetFacilitatorUrl() => $"{Navigation.BaseUri}facilitator/{meeting?.FacilitatorToken}";
+    private string GetAttendeeUrl() => $"{Navigation.BaseUri}attendee/{meeting?.AttendeeToken}";
+
+    private async Task CopyToClipboard(string text)
+    {
+        // In a real implementation, use JSInterop to copy to clipboard
+        await Task.CompletedTask;
+    }
+
+    private string GetElapsedTime()
+    {
+        if (meeting?.StartedAt == null) return "0:00";
+        var elapsed = DateTime.UtcNow - meeting.StartedAt.Value;
+        return $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:D2}";
+    }
+
+    private string GetStageElapsedTime(AgendaStage stage)
+    {
+        if (stage.StartedAt == null) return "0:00";
+        var elapsed = DateTime.UtcNow - stage.StartedAt.Value;
+        var minutes = (int)elapsed.TotalMinutes;
+        var seconds = elapsed.Seconds;
+        
+        if (minutes >= stage.PlannedDurationMinutes)
+        {
+            var overrun = elapsed - TimeSpan.FromMinutes(stage.PlannedDurationMinutes);
+            return $"⚠️ Overrun by {(int)overrun.TotalMinutes}:{overrun.Seconds:D2}";
+        }
+        
+        var remaining = TimeSpan.FromMinutes(stage.PlannedDurationMinutes) - elapsed;
+        return $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2} remaining";
+    }
+
+    private int GetProgressPercentage(AgendaStage stage)
+    {
+        if (stage.StartedAt == null) return 0;
+        var elapsed = (DateTime.UtcNow - stage.StartedAt.Value).TotalMinutes;
+        var percentage = (int)((elapsed / stage.PlannedDurationMinutes) * 100);
+        return Math.Min(percentage, 150); // Cap at 150% for display
+    }
+
+    private string GetProgressBarClass(AgendaStage stage)
+    {
+        var percentage = GetProgressPercentage(stage);
+        return percentage > 100 ? "bg-danger" : "bg-success";
+    }
+
+    private string GetStageClass(AgendaStage stage)
+    {
+        return stage.Status switch
+        {
+            StageStatus.Active => "border-primary",
+            StageStatus.Completed => "border-success",
+            _ => ""
+        };
+    }
+
+    private string GetStatusBadgeClass(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.Active => "bg-primary",
+            StageStatus.Completed => "bg-success",
+            StageStatus.Skipped => "bg-secondary",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+}
