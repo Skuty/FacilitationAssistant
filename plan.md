@@ -129,13 +129,24 @@ This document outlines the step-by-step plan for implementing the remaining feat
         - All changes persist and sync in real-time across users
         - Successfully tested: application builds and all 8 tests pass
 
-- [ ] **Private Notes & Note Management**
+- [x] **Private Notes & Note Management**
     - Feature: Private personal notes and editing capabilities.
     - Spec: [Notes System Spec](docs/features/notes-system/spec.md) (AC9-AC22)
     - Details:
         - Toggle Public/Private visibility.
         - Edit existing notes.
         - Delete notes.
+    - Implementation:
+        - Created `UpdateNoteCommand` and handler to update note content and visibility
+        - Created `DeleteNoteCommand` and handler to remove notes
+        - Added note management UI to Facilitator view with visibility toggle, edit, and delete
+        - Added note management UI to Attendee view with same capabilities
+        - Notes show visibility icons: 👁️ for public, 🔒 for private
+        - Edit mode with inline textarea and save/cancel buttons
+        - Delete confirmation modal for both facilitator and attendee views
+        - Updated Summary view to filter private notes based on viewer role
+        - Facilitators see all notes; attendees see only public notes + their own
+        - Successfully tested: application builds, all tests pass, UI validated with Playwright
 
 ## Phase 5: Onboarding & Experience
 *Goal: Reduce friction for first-time users.*

@@ -49,6 +49,28 @@ else
             </div>
         }
 
+        @* Delete Note Confirmation Dialog *@
+        @if (deletingNoteId.HasValue)
+        {
+            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">🗑️ Delete Note</h5>
+                            <button type="button" class="btn-close" @onclick="() => deletingNoteId = null"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete this note? This action cannot be undone.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="() => deletingNoteId = null">Cancel</button>
+                            <button type="button" class="btn btn-danger" @onclick="() => DeleteNote(deletingNoteId.Value)">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         <div class="row">
             <div class="col-12 bg-primary text-white p-3">
                 <div class="d-flex justify-content-between align-items-center">
@@ -473,6 +495,106 @@ else
                         </div>
                     }
 
+                    @* Notes Section *@
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">📝 Notes (@meeting.Notes.Count)</h6>
+                        </div>
+                        <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                            <div class="mb-3">
+                                <textarea class="form-control" 
+                                          placeholder="Add a note..."
+                                          @bind="newNoteContent"
+                                          rows="3"
+                                          maxlength="1000"></textarea>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="facilitatorNoteVisibilityCheck" @bind="newNoteIsPublic">
+                                        <label class="form-check-label" for="facilitatorNoteVisibilityCheck">
+                                            <small>👁️ Make note public (visible to attendees)</small>
+                                        </label>
+                                    </div>
+                                    <button class="btn btn-primary btn-sm" @onclick="AddNote">Add Note</button>
+                                </div>
+                            </div>
+
+                            @if (meeting.Notes.Any())
+                            {
+                                @foreach (var note in meeting.Notes.OrderByDescending(n => n.CreatedAt))
+                                {
+                                    var isOwnNote = note.SessionId == "facilitator";
+                                    var isEditing = editingNoteId == note.Id;
+                                    
+                                    <div class="card mb-2 @(note.IsPublic ? "bg-light" : "bg-warning bg-opacity-10")">
+                                        <div class="card-body p-2">
+                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                <div class="flex-grow-1">
+                                                    @if (isEditing)
+                                                    {
+                                                        <textarea class="form-control form-control-sm mb-2" 
+                                                                  @bind="editNoteContent"
+                                                                  rows="3"
+                                                                  maxlength="1000"></textarea>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <button class="btn btn-success btn-sm" @onclick="SaveNoteEdit">💾 Save</button>
+                                                            <button class="btn btn-secondary btn-sm" @onclick="CancelNoteEdit">Cancel</button>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="d-flex align-items-start gap-2">
+                                                            <span>@(note.IsPublic ? "👁️" : "🔒")</span>
+                                                            <div class="flex-grow-1">
+                                                                <small class="d-block">@note.Content</small>
+                                                                <small class="text-muted">
+                                                                    @note.CreatedAt.ToString("HH:mm:ss")
+                                                                    @if (note.UpdatedAt.HasValue)
+                                                                    {
+                                                                        <span> (edited)</span>
+                                                                    }
+                                                                    @if (isOwnNote)
+                                                                    {
+                                                                        <span class="badge bg-primary ms-1">Facilitator</span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="badge bg-secondary ms-1">Attendee</span>
+                                                                    }
+                                                                    @if (note.StageId != null)
+                                                                    {
+                                                                        var stage = meeting.Stages.FirstOrDefault(s => s.Id == note.StageId);
+                                                                        if (stage != null)
+                                                                        {
+                                                                            <span class="badge bg-info ms-1">@stage.Name</span>
+                                                                        }
+                                                                    }
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                                @if (isOwnNote && !isEditing)
+                                                {
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleNoteVisibility(note.Id, note.IsPublic)" title="Toggle visibility">
+                                                            @(note.IsPublic ? "🔒" : "👁️")
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEditNote(note.Id, note.Content)" title="Edit">✏️</button>
+                                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteNote(note.Id)" title="Delete">🗑️</button>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-muted">No notes yet.</p>
+                            }
+                        </div>
+                    </div>
+
                     @* Questions Management *@
                     <div class="card">
                         <div class="card-header">
@@ -607,6 +729,13 @@ else
     private string newStageName = string.Empty;
     private string newStageDescription = string.Empty;
     private int newStageDuration = 10;
+
+    // Note fields
+    private string newNoteContent = string.Empty;
+    private bool newNoteIsPublic = true;
+    private Guid? editingNoteId = null;
+    private string editNoteContent = string.Empty;
+    private Guid? deletingNoteId = null;
 
     // Question fields
     private List<Question> questions = new();
@@ -975,6 +1104,80 @@ else
             QuestionStatus.Closed => "bg-secondary",
             _ => "bg-light text-dark"
         };
+    }
+
+    // Note management methods
+    private async Task AddNote()
+    {
+        if (meeting == null || string.IsNullOrWhiteSpace(newNoteContent)) return;
+
+        var activeStage = meeting.Stages.FirstOrDefault(s => s.Status == StageStatus.Active);
+        
+        var command = new AddNoteCommand(
+            meeting.Id,
+            "facilitator", // Facilitator session ID
+            newNoteContent,
+            newNoteIsPublic,
+            activeStage?.Id
+        );
+
+        await Mediator.Send(command);
+        newNoteContent = string.Empty;
+        newNoteIsPublic = true;
+        await LoadMeeting();
+    }
+
+    private void StartEditNote(Guid noteId, string content)
+    {
+        editingNoteId = noteId;
+        editNoteContent = content;
+    }
+
+    private void CancelNoteEdit()
+    {
+        editingNoteId = null;
+        editNoteContent = string.Empty;
+    }
+
+    private async Task SaveNoteEdit()
+    {
+        if (editingNoteId == null || string.IsNullOrWhiteSpace(editNoteContent)) return;
+
+        var command = new UpdateNoteCommand(
+            editingNoteId.Value,
+            "facilitator",
+            Content: editNoteContent
+        );
+
+        await Mediator.Send(command);
+        editingNoteId = null;
+        editNoteContent = string.Empty;
+        await LoadMeeting();
+    }
+
+    private async Task ToggleNoteVisibility(Guid noteId, bool currentIsPublic)
+    {
+        var command = new UpdateNoteCommand(
+            noteId,
+            "facilitator",
+            IsPublic: !currentIsPublic
+        );
+
+        await Mediator.Send(command);
+        await LoadMeeting();
+    }
+
+    private void ConfirmDeleteNote(Guid noteId)
+    {
+        deletingNoteId = noteId;
+    }
+
+    private async Task DeleteNote(Guid noteId)
+    {
+        var command = new DeleteNoteCommand(noteId, "facilitator");
+        await Mediator.Send(command);
+        deletingNoteId = null;
+        await LoadMeeting();
     }
 
     public void Dispose()

@@ -117,7 +117,9 @@ else
                                                 
                                                 @* Show notes for this stage *@
                                                 @{
-                                                    var stageNotes = meeting.Notes.Where(n => n.StageId == stage.Id).ToList();
+                                                    var stageNotes = meeting.Notes
+                                                        .Where(n => n.StageId == stage.Id && (isFacilitator || n.IsPublic))
+                                                        .ToList();
                                                 }
                                                 @if (stageNotes.Any())
                                                 {
@@ -127,7 +129,7 @@ else
                                                         {
                                                             <div class="alert alert-light mb-1 py-1">
                                                                 <small>
-                                                                    @if (!note.IsPublic)
+                                                                    @if (!note.IsPublic && isFacilitator)
                                                                     {
                                                                         <span class="text-muted">🔒 Private: </span>
                                                                     }
@@ -149,7 +151,9 @@ else
 
                 @* General Meeting Notes *@
                 @{
-                    var generalNotes = meeting.Notes.Where(n => n.StageId == null).ToList();
+                    var generalNotes = meeting.Notes
+                        .Where(n => n.StageId == null && (isFacilitator || n.IsPublic))
+                        .ToList();
                 }
                 @if (generalNotes.Any())
                 {
@@ -161,7 +165,7 @@ else
                             @foreach (var note in generalNotes.OrderBy(n => n.CreatedAt))
                             {
                                 <div class="alert alert-info mb-2">
-                                    @if (!note.IsPublic)
+                                    @if (!note.IsPublic && isFacilitator)
                                     {
                                         <span class="badge bg-secondary">🔒 Private</span>
                                     }
@@ -217,9 +221,12 @@ else
                         <p class="mb-2"><strong>Skipped:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.Skipped)</p>
                         <p class="mb-2"><strong>Not Started:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.NotStarted)</p>
                         <hr />
-                        <p class="mb-2"><strong>Total Notes:</strong> @meeting.Notes.Count</p>
-                        <p class="mb-2"><strong>Public Notes:</strong> @meeting.Notes.Count(n => n.IsPublic)</p>
-                        <p class="mb-2"><strong>Private Notes:</strong> @meeting.Notes.Count(n => !n.IsPublic)</p>
+                        <p class="mb-2"><strong>Total Notes:</strong> @meeting.Notes.Count(n => isFacilitator || n.IsPublic)</p>
+                        @if (isFacilitator)
+                        {
+                            <p class="mb-2"><strong>Public Notes:</strong> @meeting.Notes.Count(n => n.IsPublic)</p>
+                            <p class="mb-2"><strong>Private Notes:</strong> @meeting.Notes.Count(n => !n.IsPublic)</p>
+                        }
                         <hr />
                         <p class="mb-0"><strong>Concerns Raised:</strong> @meeting.Concerns.Count</p>
                         <p class="mb-0"><strong>Dismissed:</strong> @meeting.Concerns.Count(c => c.IsDismissed)</p>
