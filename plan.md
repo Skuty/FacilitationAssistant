@@ -108,13 +108,26 @@ This document outlines the step-by-step plan for implementing the remaining feat
 ## Phase 4: Enhanced Engagement (Concerns & Notes)
 *Goal: Deepen the interaction capabilities for all participants.*
 
-- [ ] **Concern Voting & Interaction**
+- [x] **Concern Voting & Interaction**
     - Feature: Attendees can vote on concerns; Facilitators can respond.
     - Spec: [Concerns & Feedback Spec](docs/features/concerns-feedback/spec.md) (AC10-AC26)
     - Details:
         - Like/Dislike/Neutral votes.
         - Facilitator text response to concerns.
         - Withdraw concern functionality.
+    - Implementation:
+        - Created `ConcernVote` entity with unique constraint per session/concern
+        - Updated `Concern` entity with acknowledgment, response, and withdrawal tracking
+        - Created commands: `VoteConcernCommand`, `AcknowledgeConcernCommand`, `RespondToConcernCommand`, `WithdrawConcernCommand`
+        - Created `GetConcernsByMeetingQuery` to load concerns with votes
+        - Implemented handlers for all concern interaction commands
+        - Added voting UI to Attendee view with real-time vote counts and visual feedback
+        - Added concern management UI to Facilitator view with acknowledge/respond functionality
+        - Attendees can vote (like/dislike/neutral) and toggle votes
+        - Facilitators can acknowledge concerns and provide text responses
+        - Attendees can withdraw their own concerns
+        - All changes persist and sync in real-time across users
+        - Successfully tested: application builds and all 8 tests pass
 
 - [ ] **Private Notes & Note Management**
     - Feature: Private personal notes and editing capabilities.

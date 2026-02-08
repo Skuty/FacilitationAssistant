@@ -25,8 +25,8 @@ public class RaiseConcernHandler : IRequestHandler<RaiseConcernCommand, Guid>
             CustomText = request.CustomText,
             CreatedAt = DateTime.UtcNow,
             IsDismissed = false,
-            VotesUp = 0,
-            VotesDown = 0
+            IsAcknowledged = false,
+            IsWithdrawn = false
         };
 
         _context.Concerns.Add(concern);

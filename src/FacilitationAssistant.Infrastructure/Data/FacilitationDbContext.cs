@@ -14,6 +14,7 @@ public class FacilitationDbContext : DbContext
     public DbSet<AgendaStage> AgendaStages { get; set; }
     public DbSet<Note> Notes { get; set; }
     public DbSet<Concern> Concerns { get; set; }
+    public DbSet<ConcernVote> ConcernVotes { get; set; }
     public DbSet<AttendeeSession> AttendeeSessions { get; set; }
     public DbSet<Question> Questions { get; set; }
     public DbSet<QuestionOption> QuestionOptions { get; set; }
@@ -65,10 +66,23 @@ public class FacilitationDbContext : DbContext
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.ConcernType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.CustomText).HasMaxLength(500);
+            entity.Property(e => e.ResponseText).HasMaxLength(500);
             entity.HasOne(e => e.Meeting)
                 .WithMany(m => m.Concerns)
                 .HasForeignKey(e => e.MeetingId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ConcernVote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
+            entity.HasOne(e => e.Concern)
+                .WithMany(c => c.Votes)
+                .HasForeignKey(e => e.ConcernId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Ensure one vote per session per concern
+            entity.HasIndex(e => new { e.ConcernId, e.SessionId }).IsUnique();
         });
 
         modelBuilder.Entity<AttendeeSession>(entity =>

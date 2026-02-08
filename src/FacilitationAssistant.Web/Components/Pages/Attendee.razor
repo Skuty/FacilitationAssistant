@@ -218,6 +218,90 @@ else
                         }
                     </div>
                 </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">💬 Concerns (@concerns.Count(c => !c.IsWithdrawn))</h6>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        @if (!concerns.Any())
+                        {
+                            <p class="text-muted"><small>No concerns raised yet.</small></p>
+                        }
+                        else
+                        {
+                            @foreach (var concern in concerns.OrderByDescending(c => c.CreatedAt))
+                            {
+                                var likeCount = concern.Votes.Count(v => v.VoteType == VoteType.Like);
+                                var dislikeCount = concern.Votes.Count(v => v.VoteType == VoteType.Dislike);
+                                var neutralCount = concern.Votes.Count(v => v.VoteType == VoteType.Neutral);
+                                var userVote = concern.Votes.FirstOrDefault(v => v.SessionId == sessionId);
+                                var isOwnConcern = concern.SessionId == sessionId;
+                                
+                                <div class="card mb-2 @(concern.IsWithdrawn ? "opacity-50" : "")">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="flex-grow-1">
+                                                <strong>@concern.ConcernType</strong>
+                                                @if (isOwnConcern)
+                                                {
+                                                    <span class="badge bg-info ms-2">Your Concern</span>
+                                                }
+                                                @if (concern.IsAcknowledged)
+                                                {
+                                                    <span class="badge bg-success ms-2">✓ Acknowledged</span>
+                                                }
+                                                @if (concern.IsWithdrawn)
+                                                {
+                                                    <span class="badge bg-secondary ms-2">Withdrawn</span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(concern.CustomText))
+                                                {
+                                                    <p class="mb-0 mt-1"><small>@concern.CustomText</small></p>
+                                                }
+                                                <small class="text-muted d-block">@GetTimeAgo(concern.CreatedAt)</small>
+                                            </div>
+                                            @if (isOwnConcern && !concern.IsWithdrawn)
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => WithdrawConcern(concern.Id)">
+                                                    Withdraw
+                                                </button>
+                                            }
+                                        </div>
+                                        
+                                        @if (!concern.IsWithdrawn)
+                                        {
+                                            <div class="btn-group btn-group-sm mb-2" role="group">
+                                                <button type="button" 
+                                                        class="btn @(userVote?.VoteType == VoteType.Like ? "btn-primary" : "btn-outline-primary")" 
+                                                        @onclick="() => VoteConcern(concern.Id, VoteType.Like)">
+                                                    👍 @likeCount
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn @(userVote?.VoteType == VoteType.Dislike ? "btn-danger" : "btn-outline-danger")" 
+                                                        @onclick="() => VoteConcern(concern.Id, VoteType.Dislike)">
+                                                    👎 @dislikeCount
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn @(userVote?.VoteType == VoteType.Neutral ? "btn-secondary" : "btn-outline-secondary")" 
+                                                        @onclick="() => VoteConcern(concern.Id, VoteType.Neutral)">
+                                                    😐 @neutralCount
+                                                </button>
+                                            </div>
+                                        }
+                                        
+                                        @if (!string.IsNullOrEmpty(concern.ResponseText))
+                                        {
+                                            <div class="alert alert-info mb-0 mt-2 p-2">
+                                                <small><strong>Facilitator:</strong> @concern.ResponseText</small>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -447,6 +531,9 @@ else
     private Meeting? meeting;
     private System.Threading.Timer? refreshTimer;
     private string sessionId = Guid.NewGuid().ToString();
+    
+    // Concerns
+    private List<Concern> concerns = new();
 
     // UI fields
     private string newNoteContent = string.Empty;
@@ -487,6 +574,7 @@ else
         {
             await LoadMeeting();
             await LoadActiveQuestions();
+            await LoadConcerns();
             
             // Check if meeting ended during the session
             if (meeting?.Status == MeetingStatus.Ended)
@@ -724,6 +812,39 @@ else
         selectedConcernType = string.Empty;
         customConcernText = string.Empty;
         await LoadMeeting();
+        await LoadConcerns();
+    }
+
+    private async Task LoadConcerns()
+    {
+        if (meeting == null) return;
+        
+        var query = new GetConcernsByMeetingQuery(meeting.Id);
+        var result = await Mediator.Send(query);
+        concerns = result.ToList();
+    }
+
+    private async Task VoteConcern(Guid concernId, VoteType voteType)
+    {
+        var command = new VoteConcernCommand(concernId, sessionId, voteType);
+        await Mediator.Send(command);
+        await LoadConcerns();
+    }
+
+    private async Task WithdrawConcern(Guid concernId)
+    {
+        var command = new WithdrawConcernCommand(concernId, sessionId);
+        await Mediator.Send(command);
+        await LoadConcerns();
+    }
+
+    private string GetTimeAgo(DateTime createdAt)
+    {
+        var elapsed = DateTime.UtcNow - createdAt;
+        if (elapsed.TotalMinutes < 1) return "Just now";
+        if (elapsed.TotalMinutes < 60) return $"{(int)elapsed.TotalMinutes} min ago";
+        if (elapsed.TotalHours < 24) return $"{(int)elapsed.TotalHours} hr ago";
+        return createdAt.ToString("MMM dd");
     }
 
     private string GetElapsedTime()

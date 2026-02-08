@@ -376,26 +376,97 @@ else
                             <p class="mb-1"><strong>Total Stages:</strong> @meeting.Stages.Count</p>
                             <p class="mb-1"><strong>Completed:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.Completed)</p>
                             <p class="mb-1"><strong>Notes:</strong> @meeting.Notes.Count(n => n.IsPublic)</p>
-                            <p class="mb-0"><strong>Concerns:</strong> @meeting.Concerns.Count(c => !c.IsDismissed)</p>
+                            <p class="mb-0"><strong>Concerns:</strong> @concerns.Count(c => !c.IsWithdrawn)</p>
                         </div>
                     </div>
 
-                    @if (meeting.Concerns.Any(c => !c.IsDismissed))
+                    @if (concerns.Any())
                     {
                         <div class="card mb-3">
                             <div class="card-header bg-warning">
-                                <h6 class="mb-0">⚠️ Active Concerns (@meeting.Concerns.Count(c => !c.IsDismissed))</h6>
+                                <h6 class="mb-0">💬 Concerns (@concerns.Count(c => !c.IsWithdrawn && !c.IsAcknowledged))</h6>
                             </div>
-                            <div class="card-body">
-                                @foreach (var concern in meeting.Concerns.Where(c => !c.IsDismissed).OrderByDescending(c => c.CreatedAt))
+                            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                                @foreach (var concern in concerns.OrderByDescending(c => !c.IsAcknowledged).ThenByDescending(c => c.CreatedAt))
                                 {
-                                    <div class="alert alert-warning">
-                                        <strong>@concern.ConcernType</strong>
-                                        @if (!string.IsNullOrEmpty(concern.CustomText))
-                                        {
-                                            <p class="mb-0">@concern.CustomText</p>
-                                        }
-                                        <small class="text-muted">@concern.CreatedAt.ToString("HH:mm:ss")</small>
+                                    var likeCount = concern.Votes.Count(v => v.VoteType == VoteType.Like);
+                                    var dislikeCount = concern.Votes.Count(v => v.VoteType == VoteType.Dislike);
+                                    var neutralCount = concern.Votes.Count(v => v.VoteType == VoteType.Neutral);
+                                    
+                                    <div class="card mb-2 @(concern.IsWithdrawn ? "opacity-50" : "") @(concern.IsAcknowledged ? "" : "border-warning border-3")">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="flex-grow-1">
+                                                    <h6>
+                                                        @concern.ConcernType
+                                                        @if (!concern.IsAcknowledged)
+                                                        {
+                                                            <span class="badge bg-danger ms-2">NEW</span>
+                                                        }
+                                                        @if (concern.IsAcknowledged)
+                                                        {
+                                                            <span class="badge bg-success ms-2">✓ Acknowledged</span>
+                                                        }
+                                                        @if (concern.IsWithdrawn)
+                                                        {
+                                                            <span class="badge bg-secondary ms-2">Withdrawn</span>
+                                                        }
+                                                    </h6>
+                                                    @if (!string.IsNullOrEmpty(concern.CustomText))
+                                                    {
+                                                        <p class="mb-1">@concern.CustomText</p>
+                                                    }
+                                                    <div class="mb-2">
+                                                        <span class="badge bg-primary me-1">👍 @likeCount</span>
+                                                        <span class="badge bg-danger me-1">👎 @dislikeCount</span>
+                                                        <span class="badge bg-secondary">😐 @neutralCount</span>
+                                                    </div>
+                                                    <small class="text-muted">Raised @GetTimeAgo(concern.CreatedAt)</small>
+                                                </div>
+                                                @if (!concern.IsAcknowledged && !concern.IsWithdrawn)
+                                                {
+                                                    <button class="btn btn-sm btn-success" @onclick="() => AcknowledgeConcern(concern.Id)">
+                                                        ✓ Acknowledge
+                                                    </button>
+                                                }
+                                            </div>
+                                            
+                                            @if (respondingToConcernId == concern.Id)
+                                            {
+                                                <div class="mt-2">
+                                                    <textarea class="form-control mb-2" 
+                                                              @bind="responseText" 
+                                                              placeholder="Type your response (max 500 characters)..." 
+                                                              rows="2" 
+                                                              maxlength="500"></textarea>
+                                                    <small class="text-muted d-block mb-2">@responseText.Length / 500</small>
+                                                    <button class="btn btn-sm btn-primary me-1" @onclick="() => SendResponse(concern.Id)">
+                                                        Send
+                                                    </button>
+                                                    <button class="btn btn-sm btn-secondary" @onclick="CancelResponse">
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            }
+                                            else if (!string.IsNullOrEmpty(concern.ResponseText))
+                                            {
+                                                <div class="alert alert-info mb-0 mt-2">
+                                                    <strong>Your Response:</strong> @concern.ResponseText
+                                                    @if (!concern.IsWithdrawn)
+                                                    {
+                                                        <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => EditResponse(concern.Id, concern.ResponseText)">
+                                                            Edit
+                                                        </button>
+                                                    }
+                                                </div>
+                                            }
+                                            else if (!concern.IsWithdrawn)
+                                            {
+                                                <button class="btn btn-sm btn-outline-primary mt-2" @onclick="() => StartResponse(concern.Id)">
+                                                    💬 Respond
+                                                </button>
+                                            }
+                                        </div>
                                     </div>
                                 }
                             </div>
@@ -526,6 +597,11 @@ else
     private bool showLinksPanel = false;
     private bool showEndMeetingDialog = false;
     private System.Threading.Timer? refreshTimer;
+    
+    // Concerns
+    private List<Concern> concerns = new();
+    private Guid? respondingToConcernId = null;
+    private string responseText = string.Empty;
 
     // Stage builder fields
     private string newStageName = string.Empty;
@@ -591,7 +667,19 @@ else
                     questionResults[question.Id] = results;
                 }
             }
+            
+            // Load concerns
+            await LoadConcerns();
         }
+    }
+
+    private async Task LoadConcerns()
+    {
+        if (meeting == null) return;
+        
+        var query = new GetConcernsByMeetingQuery(meeting.Id);
+        var result = await Mediator.Send(query);
+        concerns = result.ToList();
     }
 
     private async Task StartMeeting()
@@ -892,5 +980,51 @@ else
     public void Dispose()
     {
         refreshTimer?.Dispose();
+    }
+
+    private async Task AcknowledgeConcern(Guid concernId)
+    {
+        var command = new AcknowledgeConcernCommand(concernId);
+        await Mediator.Send(command);
+        await LoadConcerns();
+    }
+
+    private void StartResponse(Guid concernId)
+    {
+        respondingToConcernId = concernId;
+        responseText = string.Empty;
+    }
+
+    private void EditResponse(Guid concernId, string existingResponse)
+    {
+        respondingToConcernId = concernId;
+        responseText = existingResponse;
+    }
+
+    private void CancelResponse()
+    {
+        respondingToConcernId = null;
+        responseText = string.Empty;
+    }
+
+    private async Task SendResponse(Guid concernId)
+    {
+        if (string.IsNullOrWhiteSpace(responseText)) return;
+        
+        var command = new RespondToConcernCommand(concernId, responseText.Trim());
+        await Mediator.Send(command);
+        
+        respondingToConcernId = null;
+        responseText = string.Empty;
+        await LoadConcerns();
+    }
+
+    private string GetTimeAgo(DateTime createdAt)
+    {
+        var elapsed = DateTime.UtcNow - createdAt;
+        if (elapsed.TotalMinutes < 1) return "just now";
+        if (elapsed.TotalMinutes < 60) return $"{(int)elapsed.TotalMinutes} min ago";
+        if (elapsed.TotalHours < 24) return $"{(int)elapsed.TotalHours} hr ago";
+        return createdAt.ToString("MMM dd");
     }
 }
