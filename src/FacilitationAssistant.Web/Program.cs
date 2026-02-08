@@ -13,14 +13,12 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSignalR();
 
 // Add DbContext with in-memory database for now (can switch to PostgreSQL later)
+// Using singleton for in-memory database to work with Mediator's singleton lifetime
 builder.Services.AddDbContext<FacilitationDbContext>(options =>
-    options.UseInMemoryDatabase("FacilitationDb"));
+    options.UseInMemoryDatabase("FacilitationDb"), ServiceLifetime.Singleton);
 
 // Add Mediator
-builder.Services.AddMediator(options =>
-{
-    options.ServiceLifetime = ServiceLifetime.Transient;
-});
+builder.Services.AddMediator();
 
 var app = builder.Build();
 

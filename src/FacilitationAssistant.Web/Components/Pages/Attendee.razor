@@ -335,6 +335,109 @@ else
             </div>
         </div>
     }
+
+    @* Results Display *@
+    @if (showResults && justAnsweredQuestion != null && questionResults.ContainsKey(justAnsweredQuestion.Id))
+    {
+        var results = questionResults[justAnsweredQuestion.Id];
+        <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">📊 Question Results</h5>
+                        <button type="button" class="btn-close" @onclick="() => showResults = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="fw-bold">@justAnsweredQuestion.Text</p>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <strong>Responses:</strong> @results.TotalResponses | 
+                                <strong>Pending:</strong> @results.TotalPending
+                            </small>
+                        </div>
+
+                        @if (justAnsweredQuestion.AnswerType == QuestionAnswerType.SingleChoice || 
+                             justAnsweredQuestion.AnswerType == QuestionAnswerType.MultipleChoice)
+                        {
+                            @if (results.ChoiceResults != null && justAnsweredQuestion.ResultVisibility == QuestionResultVisibility.AggregatedResultsToAttendees)
+                            {
+                                <div class="mt-2">
+                                    <h6>Results:</h6>
+                                    @foreach (var option in justAnsweredQuestion.Options.OrderBy(o => o.OrderIndex))
+                                    {
+                                        var count = results.ChoiceResults.ContainsKey(option.Id) ? results.ChoiceResults[option.Id] : 0;
+                                        var percentage = results.TotalResponses > 0 ? (int)((count / (double)results.TotalResponses) * 100) : 0;
+                                        <div class="mb-2">
+                                            <small>@option.OptionText: @count (@percentage%)</small>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" style="width: @percentage%"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (justAnsweredQuestion.ResultVisibility == QuestionResultVisibility.AllResponsesToAttendees)
+                            {
+                                <div class="alert alert-info">
+                                    <small>All individual responses visible to facilitator</small>
+                                </div>
+                            }
+                        }
+                        else if (justAnsweredQuestion.AnswerType == QuestionAnswerType.Scale && results.ScaleResults != null)
+                        {
+                            @if (justAnsweredQuestion.ResultVisibility == QuestionResultVisibility.AggregatedResultsToAttendees)
+                            {
+                                <div class="mt-2">
+                                    <h6>Results:</h6>
+                                    <div class="mb-3">
+                                        <strong>Average Score:</strong> @results.ScaleResults.AverageScore.ToString("F1") out of @justAnsweredQuestion.ScaleMax
+                                    </div>
+                                    <div class="mt-2">
+                                        <small><strong>Distribution:</strong></small>
+                                        @foreach (var kvp in results.ScaleResults.Distribution.OrderBy(d => d.Key))
+                                        {
+                                            var percentage = results.TotalResponses > 0 ? (int)((kvp.Value / (double)results.TotalResponses) * 100) : 0;
+                                            <div class="mb-1">
+                                                <small>@kvp.Key: @kvp.Value (@percentage%)</small>
+                                                <div class="progress" style="height: 15px;">
+                                                    <div class="progress-bar bg-info" style="width: @percentage%"></div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else if (justAnsweredQuestion.AnswerType == QuestionAnswerType.FreeText)
+                        {
+                            @if (justAnsweredQuestion.ResultVisibility == QuestionResultVisibility.AggregatedResultsToAttendees)
+                            {
+                                <div class="mt-2">
+                                    <small><strong>Total Responses:</strong> @results.TotalResponses</small>
+                                </div>
+                            }
+                            else if (justAnsweredQuestion.ResultVisibility == QuestionResultVisibility.AllResponsesToAttendees && results.FreeTextAnswers != null)
+                            {
+                                <div class="mt-2">
+                                    <h6>All Responses:</h6>
+                                    <ul class="list-group">
+                                        @foreach (var answer in results.FreeTextAnswers)
+                                        {
+                                            <li class="list-group-item"><small>@answer</small></li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="() => showResults = false">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
@@ -354,6 +457,8 @@ else
     private List<Question> pendingQuestions = new();
     private Question? currentQuestion = null;
     private HashSet<Guid> answeredQuestionIds = new();
+    private Dictionary<Guid, QuestionResultsDto> questionResults = new();
+    private Question? justAnsweredQuestion = null;
     
     // Answer fields
     private Guid? selectedSingleChoice = null;
@@ -364,6 +469,7 @@ else
     // UI state
     private bool isSubmitting = false;
     private bool showConfirmation = false;
+    private bool showResults = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -416,6 +522,16 @@ else
         {
             currentQuestion = pendingQuestions.First();
             ResetAnswerFields();
+        }
+    }
+
+    private async Task LoadQuestionResults(Guid questionId)
+    {
+        var resultsQuery = new GetQuestionResultsQuery(questionId);
+        var results = await Mediator.Send(resultsQuery);
+        if (results != null)
+        {
+            questionResults[questionId] = results;
         }
     }
 
@@ -503,18 +619,36 @@ else
             // Mark as answered
             answeredQuestionIds.Add(currentQuestion.Id);
             
-            // Show confirmation
-            showConfirmation = true;
+            // Check if we should show results
+            if (currentQuestion.ResultVisibility != QuestionResultVisibility.FacilitatorOnly)
+            {
+                // Load results for this question
+                justAnsweredQuestion = currentQuestion;
+                await LoadQuestionResults(currentQuestion.Id);
+                showResults = true;
+                
+                // Hide results after 5 seconds
+                _ = Task.Delay(5000).ContinueWith(_ => 
+                {
+                    showResults = false;
+                    InvokeAsync(StateHasChanged);
+                });
+            }
+            else
+            {
+                // Show simple confirmation
+                showConfirmation = true;
+                
+                // Hide confirmation after 2 seconds
+                _ = Task.Delay(2000).ContinueWith(_ => 
+                {
+                    showConfirmation = false;
+                    InvokeAsync(StateHasChanged);
+                });
+            }
             
             // Move to next question
             MoveToNextQuestion();
-            
-            // Hide confirmation after 2 seconds
-            _ = Task.Delay(2000).ContinueWith(_ => 
-            {
-                showConfirmation = false;
-                InvokeAsync(StateHasChanged);
-            });
         }
         finally
         {

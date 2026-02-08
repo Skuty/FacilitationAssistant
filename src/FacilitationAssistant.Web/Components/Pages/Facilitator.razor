@@ -470,7 +470,20 @@ else
                                                     else if (question.AnswerType == QuestionAnswerType.Scale && results.ScaleResults != null)
                                                     {
                                                         <div class="mt-2">
-                                                            <small><strong>Average:</strong> @results.ScaleResults.AverageScore.ToString("F1")</small>
+                                                            <small><strong>Average:</strong> @results.ScaleResults.AverageScore.ToString("F1") out of @question.ScaleMax</small>
+                                                            <div class="mt-2">
+                                                                <small><strong>Distribution:</strong></small>
+                                                                @foreach (var kvp in results.ScaleResults.Distribution.OrderBy(d => d.Key))
+                                                                {
+                                                                    var percentage = results.TotalResponses > 0 ? (int)((kvp.Value / (double)results.TotalResponses) * 100) : 0;
+                                                                    <div class="mb-1">
+                                                                        <small>@kvp.Key: @kvp.Value (@percentage%)</small>
+                                                                        <div class="progress" style="height: 15px;">
+                                                                            <div class="progress-bar bg-info" style="width: @percentage%"></div>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                            </div>
                                                         </div>
                                                     }
                                                     else if (question.AnswerType == QuestionAnswerType.FreeText && results.FreeTextAnswers != null)
@@ -545,9 +558,14 @@ else
             return;
         }
         
-        // Refresh every second for time updates
+        // Refresh every second for time updates and every 5 seconds for data
         refreshTimer = new System.Threading.Timer(async _ =>
         {
+            // Reload meeting data every 5 seconds for real-time updates
+            if (DateTime.UtcNow.Second % 5 == 0)
+            {
+                await LoadMeeting();
+            }
             await InvokeAsync(StateHasChanged);
         }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }

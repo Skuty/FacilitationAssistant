@@ -88,13 +88,22 @@ This document outlines the step-by-step plan for implementing the remaining feat
         - Confirmation toast message after successful submission
         - Successfully tested: application builds and all tests pass
 
-- [ ] **Real-time Results**
+- [x] **Real-time Results**
     - Feature: Visualization of poll results.
     - Spec: [Polling System Spec](docs/features/polling-system/spec.md) (AC21-AC31)
     - Details:
         - Facilitator view of results.
         - Optional shared view for attendees.
         - Charts/Graphs for structured data, List for text.
+    - Implementation:
+        - Enhanced scale results in Facilitator view with distribution histogram
+        - Added ResultVisibility setting in question creation (Facilitator Only, Aggregated, All Responses)
+        - Implemented attendee results display based on ResultVisibility setting
+        - Results show after submission: aggregated charts/percentages for choice/scale questions
+        - Facilitator view updates results every 5 seconds for real-time display
+        - Free text answers shown as list (based on visibility setting)
+        - Fixed Mediator DI configuration issue (changed to Singleton with DbContext)
+        - Successfully tested: application builds and all 8 tests pass
 
 ## Phase 4: Enhanced Engagement (Concerns & Notes)
 *Goal: Deepen the interaction capabilities for all participants.*
