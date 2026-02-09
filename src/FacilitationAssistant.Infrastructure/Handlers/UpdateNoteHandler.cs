@@ -2,6 +2,7 @@ using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -29,7 +30,7 @@ public class UpdateNoteHandler : IRequestHandler<UpdateNoteCommand, bool>
         // Update content if provided
         if (request.Content != null)
         {
-            note.Content = request.Content;
+            note.Content = HtmlEncoder.Default.Encode(request.Content);
             note.UpdatedAt = DateTime.UtcNow;
         }
 

@@ -3,6 +3,7 @@ using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -41,7 +42,7 @@ public class SubmitQuestionResponseHandler : IRequestHandler<SubmitQuestionRespo
             QuestionId = request.QuestionId,
             AttendeeSessionId = request.AttendeeSessionId,
             AnswerChoiceIds = request.AnswerChoiceIds ?? new List<Guid>(),
-            AnswerText = request.AnswerText,
+            AnswerText = string.IsNullOrWhiteSpace(request.AnswerText) ? null : HtmlEncoder.Default.Encode(request.AnswerText),
             AnswerScaleValue = request.AnswerScaleValue,
             Status = request.Status,
             SubmittedAt = DateTime.UtcNow

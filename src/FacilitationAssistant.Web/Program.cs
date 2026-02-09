@@ -2,6 +2,7 @@ using FacilitationAssistant.Infrastructure.Data;
 using FacilitationAssistant.Web.Components;
 using FacilitationAssistant.Web.Hubs;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +12,27 @@ builder.Services.AddRazorComponents()
 
 // Add SignalR
 builder.Services.AddSignalR();
+
+// Add Rate Limiting (60 requests per minute per IP)
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 5
+            }));
+    
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", cancellationToken);
+    };
+});
 
 // Configure database based on appsettings
 var databaseProvider = builder.Configuration.GetValue<string>("Database:Provider") ?? "InMemory";
@@ -50,6 +72,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseRateLimiter();
 
 app.UseAntiforgery();
 

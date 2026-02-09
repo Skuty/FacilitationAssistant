@@ -3,6 +3,7 @@ using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -55,15 +56,15 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
         {
             Id = Guid.NewGuid(),
             MeetingId = request.MeetingId,
-            Text = request.Text,
+            Text = HtmlEncoder.Default.Encode(request.Text),
             AnswerType = request.AnswerType,
             TriggerType = request.TriggerType,
             AssociatedStageId = request.AssociatedStageId,
             ResultVisibility = request.ResultVisibility,
             ScaleMin = request.ScaleMin,
             ScaleMax = request.ScaleMax,
-            ScaleMinLabel = request.ScaleMinLabel,
-            ScaleMaxLabel = request.ScaleMaxLabel,
+            ScaleMinLabel = string.IsNullOrWhiteSpace(request.ScaleMinLabel) ? null : HtmlEncoder.Default.Encode(request.ScaleMinLabel),
+            ScaleMaxLabel = string.IsNullOrWhiteSpace(request.ScaleMaxLabel) ? null : HtmlEncoder.Default.Encode(request.ScaleMaxLabel),
             MaxSelectableOptions = request.MaxSelectableOptions,
             Status = request.TriggerImmediately ? QuestionStatus.Active : QuestionStatus.Draft,
             CreatedAt = DateTime.UtcNow,
@@ -81,7 +82,7 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
                 {
                     Id = Guid.NewGuid(),
                     QuestionId = question.Id,
-                    OptionText = request.Options[i],
+                    OptionText = HtmlEncoder.Default.Encode(request.Options[i]),
                     OrderIndex = i
                 };
                 _context.QuestionOptions.Add(option);

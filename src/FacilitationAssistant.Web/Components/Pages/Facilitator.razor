@@ -318,10 +318,31 @@ else
                             <div class="card-body">
                                 <div class="mb-3">
                                     <label class="form-label fw-bold text-danger">Facilitator Link (Keep Private!)</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" readonly value="@GetFacilitatorUrl()" />
-                                        <button class="btn btn-outline-secondary" @onclick="() => CopyToClipboard(GetFacilitatorUrl())">Copy</button>
+                                    <div class="input-group mb-2">
+                                        <input type="text" class="form-control font-monospace" readonly 
+                                               value="@(facilitatorLinkRevealed ? GetFacilitatorUrl() : "••••••••••••••••••••••••••")" />
+                                        <button class="btn btn-outline-secondary" @onclick="ToggleFacilitatorLinkVisibility">
+                                            @(facilitatorLinkRevealed ? "🙈 Hide" : "👁️ Reveal")
+                                        </button>
+                                        <button class="btn btn-outline-primary" 
+                                                @onclick="() => CopyToClipboard(GetFacilitatorUrl())"
+                                                disabled="@(!facilitatorLinkRevealed)">
+                                            Copy
+                                        </button>
                                     </div>
+                                    <button class="btn btn-sm btn-danger" @onclick="RegenerateFacilitatorLink" disabled="@isRegeneratingLink">
+                                        @if (isRegeneratingLink)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                        }
+                                        🔄 Regenerate Link
+                                    </button>
+                                    @if (!string.IsNullOrEmpty(regenerationMessage))
+                                    {
+                                        <div class="alert alert-@(regenerationSuccess ? "success" : "danger") alert-sm mt-2 mb-0" role="alert">
+                                            @regenerationMessage
+                                        </div>
+                                    }
                                 </div>
                                 <div>
                                     <label class="form-label fw-bold">Attendee Link (Share This)</label>
@@ -727,6 +748,12 @@ else
     private bool showEndMeetingDialog = false;
     private System.Threading.Timer? refreshTimer;
     
+    // Security: Link management
+    private bool facilitatorLinkRevealed = false;
+    private bool isRegeneratingLink = false;
+    private string regenerationMessage = string.Empty;
+    private bool regenerationSuccess = false;
+    
     // Concerns
     private List<Concern> concerns = new();
     private Guid? respondingToConcernId = null;
@@ -922,6 +949,54 @@ else
 
     private string GetFacilitatorUrl() => $"{Navigation.BaseUri}facilitator/{meeting?.FacilitatorToken}";
     private string GetAttendeeUrl() => $"{Navigation.BaseUri}attendee/{meeting?.AttendeeToken}";
+
+    private void ToggleFacilitatorLinkVisibility()
+    {
+        facilitatorLinkRevealed = !facilitatorLinkRevealed;
+    }
+
+    private async Task RegenerateFacilitatorLink()
+    {
+        if (meeting == null) return;
+
+        try
+        {
+            isRegeneratingLink = true;
+            regenerationMessage = string.Empty;
+            StateHasChanged();
+
+            // Call the command to regenerate the token
+            var newToken = await Mediator.Send(new RegenerateFacilitatorTokenCommand(meeting.FacilitatorToken));
+
+            // Update the meeting object with the new token
+            meeting.FacilitatorToken = newToken;
+            
+            // Hide the link for security and reset state
+            facilitatorLinkRevealed = false;
+            regenerationMessage = "✓ Facilitator link has been regenerated successfully! Old link is now invalid.";
+            regenerationSuccess = true;
+            
+            // Auto-hide message after 5 seconds
+            _ = Task.Delay(5000).ContinueWith(_ =>
+            {
+                regenerationMessage = string.Empty;
+                InvokeAsync(StateHasChanged);
+            });
+
+            // Navigate to the new URL
+            Navigation.NavigateTo($"/facilitator/{newToken}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            regenerationMessage = $"⚠️ Error regenerating link: {ex.Message}";
+            regenerationSuccess = false;
+        }
+        finally
+        {
+            isRegeneratingLink = false;
+            StateHasChanged();
+        }
+    }
 
     private async Task CopyToClipboard(string text)
     {

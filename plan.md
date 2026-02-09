@@ -191,9 +191,33 @@ This document outlines the step-by-step plan for implementing the remaining feat
         - Development mode uses InMemory database by default; Production can use PostgreSQL
         - Successfully tested: application builds, all 8 tests pass, UI verified with Playwright
 
-- [ ] **Security Hardening**
+- [x] **Security Hardening**
     - Feature: Protect meeting data.
     - Spec: [Security Spec](docs/features/cross-cutting-concerns/security.md)
     - Details:
         - Link regeneration/invalidation.
         - Input sanitization (XSS prevention in notes/questions).
+        - Rate limiting (60 requests/minute per IP).
+        - Resource creation limits (max 50 concerns, 100 notes per meeting).
+    - Implementation:
+        - Created `RegenerateFacilitatorTokenCommand` and handler to generate new cryptographically secure tokens
+        - Added input sanitization using `HtmlEncoder.Default.Encode()` to all user input handlers:
+          - AddNoteHandler, UpdateNoteHandler (note content)
+          - RaiseConcernHandler, RespondToConcernHandler (concern text, responses)
+          - CreateMeetingHandler (meeting title)
+          - AddAgendaStageHandler (stage name, description)
+          - CreateQuestionHandler (question text, options, scale labels)
+          - SubmitQuestionResponseHandler (free text answers)
+        - Configured ASP.NET Core rate limiting middleware with FixedWindowRateLimiter (60 requests/minute per IP)
+        - Added resource creation limits validation:
+          - Max 100 notes per meeting (enforced in AddNoteHandler)
+          - Max 50 concerns per meeting (enforced in RaiseConcernHandler)
+        - Enhanced Facilitator UI with link security features:
+          - Facilitator link obfuscation (masked with bullets until revealed)
+          - "Reveal/Hide" toggle button for facilitator link
+          - "Regenerate Link" button with loading spinner
+          - Copy button disabled when link is hidden
+          - Success/error messages for regeneration
+          - Automatic navigation to new URL after regeneration
+        - Successfully tested: application builds, all 8 tests pass, UI validated with Playwright
+        - Verified: link obfuscation, reveal/hide toggle, and link regeneration all working correctly

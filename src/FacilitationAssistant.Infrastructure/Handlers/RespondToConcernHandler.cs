@@ -1,6 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
+using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -21,7 +22,7 @@ public class RespondToConcernHandler : ICommandHandler<RespondToConcernCommand>
             throw new InvalidOperationException("Concern not found");
         }
 
-        concern.ResponseText = request.ResponseText;
+        concern.ResponseText = string.IsNullOrWhiteSpace(request.ResponseText) ? null : HtmlEncoder.Default.Encode(request.ResponseText);
         concern.RespondedAt = DateTime.UtcNow;
         
         // Automatically acknowledge when responding
