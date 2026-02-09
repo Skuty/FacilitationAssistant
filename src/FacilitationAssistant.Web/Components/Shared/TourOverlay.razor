@@ -1,0 +1,263 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+@if (isVisible)
+{
+    <div class="tour-overlay" @onclick="HandleOverlayClick">
+        <div class="tour-content @GetPositionClass()" @onclick:stopPropagation="true">
+            <div class="tour-header">
+                <h5 class="mb-0">@currentStep.Title</h5>
+                <button type="button" class="btn-close btn-close-white" @onclick="DismissTour"></button>
+            </div>
+            <div class="tour-body">
+                <p>@((MarkupString)currentStep.Description)</p>
+            </div>
+            <div class="tour-footer">
+                <div class="tour-progress">
+                    Step @(currentStepIndex + 1) of @Steps.Count
+                </div>
+                <div class="tour-actions">
+                    @if (currentStepIndex > 0)
+                    {
+                        <button class="btn btn-sm btn-outline-light" @onclick="PreviousStep">← Previous</button>
+                    }
+                    @if (currentStepIndex < Steps.Count - 1)
+                    {
+                        <button class="btn btn-sm btn-primary" @onclick="NextStep">Next →</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-success" @onclick="CompleteTour">Got It! ✓</button>
+                    }
+                </div>
+            </div>
+        </div>
+        
+        @* Highlight box for the target element *@
+        @if (!string.IsNullOrEmpty(currentStep.TargetSelector))
+        {
+            <div class="tour-highlight" style="@GetHighlightStyle()"></div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string TourKey { get; set; } = string.Empty;
+
+    [Parameter]
+    public List<TourStep> Steps { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnComplete { get; set; }
+
+    private bool isVisible = false;
+    private int currentStepIndex = 0;
+    private TourStep currentStep => Steps.Any() ? Steps[currentStepIndex] : new TourStep();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Steps.Any())
+        {
+            var hasSeen = await JSRuntime.InvokeAsync<bool>("onboardingHelper.hasSeen", TourKey);
+            if (!hasSeen)
+            {
+                isVisible = true;
+                StateHasChanged();
+            }
+        }
+    }
+
+    public async Task ShowTour()
+    {
+        currentStepIndex = 0;
+        isVisible = true;
+        StateHasChanged();
+    }
+
+    private void NextStep()
+    {
+        if (currentStepIndex < Steps.Count - 1)
+        {
+            currentStepIndex++;
+            StateHasChanged();
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (currentStepIndex > 0)
+        {
+            currentStepIndex--;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CompleteTour()
+    {
+        await JSRuntime.InvokeVoidAsync("onboardingHelper.markAsSeen", TourKey);
+        isVisible = false;
+        StateHasChanged();
+        await OnComplete.InvokeAsync();
+    }
+
+    private async Task DismissTour()
+    {
+        await CompleteTour();
+    }
+
+    private void HandleOverlayClick()
+    {
+        // Click on overlay does nothing - user must use buttons
+    }
+
+    private string GetPositionClass()
+    {
+        return currentStep.Position switch
+        {
+            TourPosition.TopLeft => "tour-position-top-left",
+            TourPosition.TopRight => "tour-position-top-right",
+            TourPosition.BottomLeft => "tour-position-bottom-left",
+            TourPosition.BottomRight => "tour-position-bottom-right",
+            TourPosition.Center => "tour-position-center",
+            _ => "tour-position-center"
+        };
+    }
+
+    private string GetHighlightStyle()
+    {
+        // In a real implementation, you would use JSInterop to get element position
+        // For now, we'll use predefined positions based on known layout
+        return currentStep.HighlightStyle ?? "";
+    }
+
+    public class TourStep
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string TargetSelector { get; set; } = string.Empty;
+        public TourPosition Position { get; set; } = TourPosition.Center;
+        public string? HighlightStyle { get; set; }
+    }
+
+    public enum TourPosition
+    {
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight,
+        Center
+    }
+}
+
+<style>
+    .tour-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .tour-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 0;
+        max-width: 500px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        position: relative;
+        z-index: 10001;
+    }
+
+    .tour-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tour-body {
+        padding: 20px;
+        line-height: 1.6;
+    }
+
+    .tour-body p {
+        margin: 0;
+    }
+
+    .tour-footer {
+        padding: 15px 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tour-progress {
+        font-size: 0.875rem;
+        opacity: 0.8;
+    }
+
+    .tour-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .tour-position-center {
+        margin: auto;
+    }
+
+    .tour-position-top-left {
+        position: absolute;
+        top: 100px;
+        left: 20px;
+    }
+
+    .tour-position-top-right {
+        position: absolute;
+        top: 100px;
+        right: 20px;
+    }
+
+    .tour-position-bottom-left {
+        position: absolute;
+        bottom: 100px;
+        left: 20px;
+    }
+
+    .tour-position-bottom-right {
+        position: absolute;
+        bottom: 100px;
+        right: 20px;
+    }
+
+    .tour-highlight {
+        position: absolute;
+        border: 3px solid #ffd700;
+        border-radius: 8px;
+        pointer-events: none;
+        z-index: 10000;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            border-color: #ffd700;
+        }
+        50% {
+            border-color: #ffed4e;
+        }
+    }
+
+    .btn-close-white {
+        filter: brightness(0) invert(1);
+    }
+</style>

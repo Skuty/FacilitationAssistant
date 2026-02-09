@@ -6,6 +6,7 @@
 @using Mediator
 @inject IMediator Mediator
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>@(meeting?.Title ?? "Meeting") - Attendee</PageTitle>
 
@@ -38,9 +39,10 @@ else
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="mb-0">📋 @meeting.Title</h4>
-                        <small>Attendee View</small>
+                        <small>Attendee View | 🎭 Attendee #@GetAttendeeNumber()</small>
                     </div>
                     <div>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowWelcomeManually" title="Show Welcome">❓</button>
                         @if (meeting.StartedAt != null)
                         {
                             <span class="badge bg-light text-dark fs-6">
@@ -605,6 +607,9 @@ else
             </div>
         </div>
     }
+
+    @* Welcome Modal *@
+    <AttendeeWelcome @ref="attendeeWelcome" AttendeeNumber="@GetAttendeeNumber()" />
 }
 
 @code {
@@ -1046,5 +1051,24 @@ else
     public void Dispose()
     {
         refreshTimer?.Dispose();
+    }
+
+    // Welcome modal functionality
+    private AttendeeWelcome? attendeeWelcome;
+
+    private string GetAttendeeNumber()
+    {
+        // Extract a simple number from the session ID for display
+        // This is just for display purposes to show attendee anonymity
+        return Math.Abs(sessionId.GetHashCode() % 1000).ToString();
+    }
+
+    private async Task ShowWelcomeManually()
+    {
+        await JSRuntime.InvokeVoidAsync("onboardingHelper.resetTour", "attendee-tour-seen");
+        if (attendeeWelcome != null)
+        {
+            await attendeeWelcome.ShowWelcome();
+        }
     }
 }

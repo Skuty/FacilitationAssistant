@@ -1,0 +1,72 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+@if (isVisible)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7); z-index: 9999;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">👋 Welcome to the Meeting!</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <h6>🎭 You are attending anonymously</h6>
+                        <p class="mb-0">@AttendeeMessage</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6>🎯 Meeting Structure</h6>
+                        <p class="mb-0">The facilitator controls the agenda and timing. You'll see real-time updates as the meeting progresses.</p>
+                    </div>
+                    <div class="mb-0">
+                        <h6>💬 Your Feedback Matters</h6>
+                        <p class="mb-0">You can raise concerns, take notes, and respond to polls. Your input is visible to the facilitator.</p>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" @onclick="DismissModal">Got It!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string AttendeeNumber { get; set; } = "1";
+
+    [Parameter]
+    public EventCallback OnDismiss { get; set; }
+
+    private bool isVisible = false;
+    private const string TourKey = "attendee-tour-seen";
+
+    private string AttendeeMessage => $"You are identified as Attendee #{AttendeeNumber}. No personal information is collected.";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var hasSeen = await JSRuntime.InvokeAsync<bool>("onboardingHelper.hasSeen", TourKey);
+            if (!hasSeen)
+            {
+                isVisible = true;
+                StateHasChanged();
+            }
+        }
+    }
+
+    public async Task ShowWelcome()
+    {
+        isVisible = true;
+        StateHasChanged();
+    }
+
+    private async Task DismissModal()
+    {
+        await JSRuntime.InvokeVoidAsync("onboardingHelper.markAsSeen", TourKey);
+        isVisible = false;
+        StateHasChanged();
+        await OnDismiss.InvokeAsync();
+    }
+}

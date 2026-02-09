@@ -151,13 +151,22 @@ This document outlines the step-by-step plan for implementing the remaining feat
 ## Phase 5: Onboarding & Experience
 *Goal: Reduce friction for first-time users.*
 
-- [ ] **First-run Tours**
+- [x] **First-run Tours**
     - Feature: Interactive guidance for new users.
     - Spec: [Onboarding Spec](docs/features/onboarding/spec.md)
     - Details:
         - Facilitator tour (Link sharing, Controls).
         - Attendee welcome (Anonymity explanation).
         - LocalStorage persistence for "seen" state.
+    - Implementation:
+        - Created JavaScript interop (`onboarding.js`) for localStorage management
+        - Created `TourOverlay` component with 5-step facilitator tour
+        - Created `AttendeeWelcome` modal component
+        - Added help (❓) button to both pages to manually restart tours
+        - Tour highlights: meeting link sharing, timer controls, feedback panel
+        - Welcome modal explains: anonymity, facilitator control, feedback visibility
+        - Tours persist state in localStorage (won't show again after dismissal)
+        - Successfully tested: application builds, all tests pass, UI validated with Playwright
 
 ## Phase 6: Infrastructure & Production Readiness
 *Goal: Prepare for robust real-world usage.*

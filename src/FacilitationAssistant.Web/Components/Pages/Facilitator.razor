@@ -6,6 +6,7 @@
 @using Mediator
 @inject IMediator Mediator
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Facilitator View - @(meeting?.Title ?? "Meeting")</PageTitle>
 
@@ -79,9 +80,10 @@ else
                         <small>Facilitator View | Status: @meeting.Status</small>
                     </div>
                     <div>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowTourManually" title="Show Tour">❓</button>
                         @if (meeting.Status == MeetingStatus.Setup)
                         {
-                            <button class="btn btn-light btn-sm me-2" @onclick="ShowLinks">📎 Share Links</button>
+                            <button class="btn btn-light btn-sm me-2" @onclick="ShowLinks" id="share-links-btn">📎 Share Links</button>
                             <button class="btn btn-success" @onclick="StartMeeting" disabled="@(!meeting.Stages.Any())">
                                 ▶️ Start Meeting
                             </button>
@@ -709,6 +711,11 @@ else
             </div>
         }
     </div>
+
+    @* Tour Overlay *@
+    <TourOverlay @ref="tourOverlay" 
+                 TourKey="facilitator-tour-seen"
+                 Steps="GetFacilitatorTourSteps()" />
 }
 
 @code {
@@ -1229,5 +1236,64 @@ else
         if (elapsed.TotalMinutes < 60) return $"{(int)elapsed.TotalMinutes} min ago";
         if (elapsed.TotalHours < 24) return $"{(int)elapsed.TotalHours} hr ago";
         return createdAt.ToString("MMM dd");
+    }
+
+    // Tour functionality
+    private TourOverlay? tourOverlay;
+
+    private List<TourOverlay.TourStep> GetFacilitatorTourSteps()
+    {
+        return new List<TourOverlay.TourStep>
+        {
+            new TourOverlay.TourStep
+            {
+                Title = "👋 Welcome, Facilitator!",
+                Description = "This quick tour will show you the key features to run your meeting effectively.",
+                Position = TourOverlay.TourPosition.Center
+            },
+            new TourOverlay.TourStep
+            {
+                Title = "📎 Meeting Link Sharing",
+                Description = "<strong>Important:</strong> Use the 'Share Links' button to get your meeting links.<br><br>" +
+                             "✅ Share the <strong>Attendee Link</strong> with participants<br>" +
+                             "🔒 Keep the <strong>Facilitator Link</strong> private!",
+                Position = TourOverlay.TourPosition.TopRight
+            },
+            new TourOverlay.TourStep
+            {
+                Title = "⏱️ Timer Controls",
+                Description = "Once you start the meeting, you'll see:<br><br>" +
+                             "• The elapsed time displayed here<br>" +
+                             "• Stage timers showing time remaining or overrun<br>" +
+                             "• Controls to start/end each stage",
+                Position = TourOverlay.TourPosition.TopRight
+            },
+            new TourOverlay.TourStep
+            {
+                Title = "💬 Feedback Panel",
+                Description = "On the right side, you'll see:<br><br>" +
+                             "• Concerns raised by attendees<br>" +
+                             "• Poll results in real-time<br>" +
+                             "• Meeting notes<br><br>" +
+                             "You can respond to concerns and manage feedback here.",
+                Position = TourOverlay.TourPosition.Center
+            },
+            new TourOverlay.TourStep
+            {
+                Title = "🎯 Ready to Go!",
+                Description = "You're all set! Build your agenda, share the attendee link, and start your meeting.<br><br>" +
+                             "<small>💡 Tip: Click the ❓ button anytime to see this tour again.</small>",
+                Position = TourOverlay.TourPosition.Center
+            }
+        };
+    }
+
+    private async Task ShowTourManually()
+    {
+        await JSRuntime.InvokeVoidAsync("onboardingHelper.resetTour", "facilitator-tour-seen");
+        if (tourOverlay != null)
+        {
+            await tourOverlay.ShowTour();
+        }
     }
 }
