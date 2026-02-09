@@ -12,10 +12,28 @@ builder.Services.AddRazorComponents()
 // Add SignalR
 builder.Services.AddSignalR();
 
-// Add DbContext with in-memory database for now (can switch to PostgreSQL later)
-// Using singleton for in-memory database to work with Mediator's singleton lifetime
-builder.Services.AddDbContext<FacilitationDbContext>(options =>
-    options.UseInMemoryDatabase("FacilitationDb"), ServiceLifetime.Singleton);
+// Configure database based on appsettings
+var databaseProvider = builder.Configuration.GetValue<string>("Database:Provider") ?? "InMemory";
+
+if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+{
+    // PostgreSQL - use scoped lifetime for proper transaction handling
+    var connectionString = builder.Configuration.GetConnectionString("PostgreSQL") 
+        ?? builder.Configuration.GetValue<string>("Database:ConnectionStrings:PostgreSQL");
+    
+    builder.Services.AddDbContext<FacilitationDbContext>(options =>
+        options.UseNpgsql(connectionString), ServiceLifetime.Scoped);
+}
+else
+{
+    // InMemory - use singleton lifetime to work with Mediator's singleton lifetime
+    var databaseName = builder.Configuration.GetConnectionString("InMemory") 
+        ?? builder.Configuration.GetValue<string>("Database:ConnectionStrings:InMemory") 
+        ?? "FacilitationDb";
+    
+    builder.Services.AddDbContext<FacilitationDbContext>(options =>
+        options.UseInMemoryDatabase(databaseName), ServiceLifetime.Singleton);
+}
 
 // Add Mediator
 builder.Services.AddMediator();

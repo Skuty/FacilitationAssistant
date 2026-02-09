@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: facilitation_assistant_db
+    environment:
+      POSTGRES_DB: facilitation_assistant
+      POSTGRES_USER: facilitation_user
+      POSTGRES_PASSWORD: facilitation_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U facilitation_user -d facilitation_assistant"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

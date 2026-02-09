@@ -171,13 +171,25 @@ This document outlines the step-by-step plan for implementing the remaining feat
 ## Phase 6: Infrastructure & Production Readiness
 *Goal: Prepare for robust real-world usage.*
 
-- [ ] **PostgreSQL Integration**
+- [x] **PostgreSQL Integration**
     - Feature: Switch from InMemory to robust database.
     - Spec: [Integration Matrix](docs/features/cross-cutting-concerns/integration-matrix.md)
     - Details:
         - connection strings.
         - EF Core Migrations.
         - Docker Compose support (optional but recommended).
+    - Implementation:
+        - Added Npgsql.EntityFrameworkCore.PostgreSQL 9.0.0 package
+        - Added Microsoft.EntityFrameworkCore.InMemory 9.0.0 for testing
+        - Added Microsoft.EntityFrameworkCore.Design 9.0.0 for migrations
+        - Updated appsettings.json with database provider configuration and connection strings
+        - Updated Program.cs to dynamically select database provider (PostgreSQL or InMemory) based on configuration
+        - Created FacilitationDbContextFactory for design-time DbContext creation during migrations
+        - Created initial EF Core migration (InitialCreate) with full schema
+        - Created docker-compose.yml for easy PostgreSQL setup with health checks
+        - Created DATABASE_SETUP.md with comprehensive setup instructions
+        - Development mode uses InMemory database by default; Production can use PostgreSQL
+        - Successfully tested: application builds, all 8 tests pass, UI verified with Playwright
 
 - [ ] **Security Hardening**
     - Feature: Protect meeting data.
