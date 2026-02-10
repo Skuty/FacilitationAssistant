@@ -10,6 +10,8 @@
 
 <PageTitle>Facilitator View - @(meeting?.Title ?? "Meeting")</PageTitle>
 
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
 @if (meeting == null)
 {
     <div class="text-center mt-5">
@@ -25,11 +27,11 @@ else
         @* End Meeting Confirmation Dialog *@
         @if (showEndMeetingDialog)
         {
-            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" role="dialog" aria-labelledby="endMeetingTitle" aria-modal="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header bg-danger text-white">
-                            <h5 class="modal-title">⚠️ End Meeting?</h5>
+                            <h5 class="modal-title" id="endMeetingTitle"><span aria-hidden="true">⚠️</span> End Meeting?</h5>
                         </div>
                         <div class="modal-body">
                             <p>Are you sure you want to end this meeting?</p>
@@ -53,12 +55,12 @@ else
         @* Delete Note Confirmation Dialog *@
         @if (deletingNoteId.HasValue)
         {
-            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" role="dialog" aria-labelledby="deleteNoteTitle" aria-modal="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">🗑️ Delete Note</h5>
-                            <button type="button" class="btn-close" @onclick="() => deletingNoteId = null"></button>
+                            <h5 class="modal-title" id="deleteNoteTitle"><span aria-hidden="true">🗑️</span> Delete Note</h5>
+                            <button type="button" class="btn-close" @onclick="() => deletingNoteId = null" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <p>Are you sure you want to delete this note? This action cannot be undone.</p>
@@ -73,29 +75,29 @@ else
         }
 
         <div class="row">
-            <div class="col-12 bg-primary text-white p-3">
+            <div class="col-12 bg-primary text-white p-3" role="banner">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-0">🎯 @meeting.Title</h4>
+                        <h4 class="mb-0"><span aria-hidden="true">🎯</span> @meeting.Title</h4>
                         <small>Facilitator View | Status: @meeting.Status</small>
                     </div>
                     <div>
-                        <button class="btn btn-sm btn-outline-light me-2" @onclick="() => showSettings = true" title="Settings">⚙️</button>
-                        <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowTourManually" title="Show Tour">❓</button>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="() => showSettings = true" aria-label="Open settings"><span aria-hidden="true">⚙️</span></button>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowTourManually" aria-label="Show facilitator tour"><span aria-hidden="true">❓</span></button>
                         @if (meeting.Status == MeetingStatus.Setup)
                         {
-                            <button class="btn btn-light btn-sm me-2" @onclick="ShowLinks" id="share-links-btn">📎 Share Links</button>
-                            <button class="btn btn-success" @onclick="StartMeeting" disabled="@(!meeting.Stages.Any())">
-                                ▶️ Start Meeting
+                            <button class="btn btn-light btn-sm me-2" @onclick="ShowLinks" id="share-links-btn" aria-label="Share meeting links"><span aria-hidden="true">📎</span> Share Links</button>
+                            <button class="btn btn-success" @onclick="StartMeeting" disabled="@(!meeting.Stages.Any())" aria-label="Start meeting">
+                                <span aria-hidden="true">▶️</span> Start Meeting
                             </button>
                         }
                         else if (meeting.Status == MeetingStatus.Active)
                         {
-                            <span class="badge bg-light text-primary fs-6 me-2">
-                                ⏱️ @GetElapsedTime()
+                            <span class="badge bg-light text-primary fs-6 me-2" aria-live="off" aria-label="Meeting elapsed time">
+                                <span aria-hidden="true">⏱️</span> @GetElapsedTime()
                             </span>
-                            <button class="btn btn-danger" @onclick="ShowEndMeetingConfirmation">
-                                ⏹️ End Meeting
+                            <button class="btn btn-danger" @onclick="ShowEndMeetingConfirmation" aria-label="End meeting">
+                                <span aria-hidden="true">⏹️</span> End Meeting
                             </button>
                         }
                     </div>
@@ -106,7 +108,7 @@ else
         @if (meeting.Status == MeetingStatus.Setup)
         {
             <div class="row mt-4">
-                <div class="col-md-8">
+                <div class="col-md-8" id="main-content" role="main">
                     <div class="card mb-3">
                         <div class="card-header">
                             <h5>Agenda Builder</h5>
@@ -390,7 +392,12 @@ else
                                                 {
                                                     <div class="progress mt-2" style="height: 20px;">
                                                         <div class="progress-bar @GetProgressBarClass(stage)" 
-                                                             style="width: @GetProgressPercentage(stage)%">
+                                                             style="width: @GetProgressPercentage(stage)%"
+                                                             role="progressbar"
+                                                             aria-valuenow="@GetProgressPercentage(stage)"
+                                                             aria-valuemin="0"
+                                                             aria-valuemax="100"
+                                                             aria-label="Stage progress: @GetProgressPercentage(stage) percent complete">
                                                             @GetProgressPercentage(stage)%
                                                         </div>
                                                     </div>
@@ -677,7 +684,13 @@ else
                                                                     <div class="mb-1">
                                                                         <small>@option.OptionText: @count (@percentage%)</small>
                                                                         <div class="progress" style="height: 15px;">
-                                                                            <div class="progress-bar" style="width: @percentage%"></div>
+                                                                            <div class="progress-bar" 
+                                                                                 style="width: @percentage%"
+                                                                                 role="progressbar"
+                                                                                 aria-valuenow="@percentage"
+                                                                                 aria-valuemin="0"
+                                                                                 aria-valuemax="100"
+                                                                                 aria-label="@option.OptionText: @count responses, @percentage percent"></div>
                                                                         </div>
                                                                     </div>
                                                                 }
@@ -696,7 +709,13 @@ else
                                                                     <div class="mb-1">
                                                                         <small>@kvp.Key: @kvp.Value (@percentage%)</small>
                                                                         <div class="progress" style="height: 15px;">
-                                                                            <div class="progress-bar bg-info" style="width: @percentage%"></div>
+                                                                            <div class="progress-bar bg-info" 
+                                                                                 style="width: @percentage%"
+                                                                                 role="progressbar"
+                                                                                 aria-valuenow="@percentage"
+                                                                                 aria-valuemin="0"
+                                                                                 aria-valuemax="100"
+                                                                                 aria-label="Scale value @kvp.Key: @kvp.Value responses, @percentage percent"></div>
                                                                         </div>
                                                                     </div>
                                                                 }

@@ -10,6 +10,8 @@
 
 <PageTitle>@(meeting?.Title ?? "Meeting") - Attendee</PageTitle>
 
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
 @if (meeting == null)
 {
     <div class="text-center mt-5">
@@ -35,19 +37,19 @@ else
 {
     <div class="container-fluid">
         <div class="row">
-            <div class="col-12 bg-info text-white p-3">
+            <div class="col-12 bg-info text-white p-3" role="banner">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-0">📋 @meeting.Title</h4>
-                        <small>Attendee View | 🎭 Attendee #@GetAttendeeNumber()</small>
+                        <h4 class="mb-0"><span aria-hidden="true">📋</span> @meeting.Title</h4>
+                        <small>Attendee View | <span aria-hidden="true">🎭</span> Attendee #@GetAttendeeNumber()</small>
                     </div>
                     <div>
-                        <button class="btn btn-sm btn-outline-light me-2" @onclick="() => showSettings = true" title="Settings">⚙️</button>
-                        <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowWelcomeManually" title="Show Welcome">❓</button>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="() => showSettings = true" aria-label="Open settings"><span aria-hidden="true">⚙️</span></button>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowWelcomeManually" aria-label="Show welcome tour"><span aria-hidden="true">❓</span></button>
                         @if (meeting.StartedAt != null)
                         {
-                            <span class="badge bg-light text-dark fs-6">
-                                ⏱️ @GetElapsedTime()
+                            <span class="badge bg-light text-dark fs-6" aria-live="off" aria-label="Meeting elapsed time">
+                                <span aria-hidden="true">⏱️</span> @GetElapsedTime()
                             </span>
                         }
                     </div>
@@ -57,9 +59,9 @@ else
 
         <div class="row mt-4">
             <div class="col-md-8">
-                <div class="card">
+                <div class="card" id="main-content" role="main">
                     <div class="card-header">
-                        <h5>📅 Meeting Agenda</h5>
+                        <h5><span aria-hidden="true">📅</span> Meeting Agenda</h5>
                     </div>
                     <div class="card-body">
                         @if (!meeting.Stages.Any())
@@ -98,7 +100,7 @@ else
                                                     
                                                     @if (stage.Status == StageStatus.Active && stage.StartedAt != null)
                                                     {
-                                                        <span class="text-primary fw-bold">
+                                                        <span class="text-primary fw-bold" aria-live="polite" aria-atomic="true">
                                                             @GetStageTimeDisplay(stage)
                                                         </span>
                                                     }
@@ -116,7 +118,11 @@ else
                                                     <div class="progress mt-2" style="height: 20px;">
                                                         <div class="progress-bar @GetProgressBarClass(stage)" 
                                                              style="width: @GetProgressPercentage(stage)%"
-                                                             role="progressbar">
+                                                             role="progressbar"
+                                                             aria-valuenow="@GetProgressPercentage(stage)"
+                                                             aria-valuemin="0"
+                                                             aria-valuemax="100"
+                                                             aria-label="Stage progress: @GetProgressPercentage(stage) percent complete">
                                                             @GetProgressPercentage(stage)%
                                                         </div>
                                                     </div>

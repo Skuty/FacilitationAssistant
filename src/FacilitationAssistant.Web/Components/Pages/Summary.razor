@@ -8,6 +8,8 @@
 
 <PageTitle>Meeting Summary - @(meeting?.Title ?? "Meeting")</PageTitle>
 
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
 @if (meeting == null)
 {
     <div class="text-center mt-5">
@@ -38,23 +40,23 @@ else
 {
     <div class="container-fluid">
         <div class="row">
-            <div class="col-12 bg-success text-white p-3">
+            <div class="col-12 bg-success text-white p-3" role="banner">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-0">✅ @meeting.Title</h4>
+                        <h4 class="mb-0"><span aria-hidden="true">✅</span> @meeting.Title</h4>
                         <small>Meeting Summary | Ended @meeting.EndedAt?.ToString("MMM dd, yyyy HH:mm")</small>
                     </div>
-                    <button class="btn btn-light" @onclick="PrintSummary">🖨️ Print</button>
+                    <button class="btn btn-light" @onclick="PrintSummary" aria-label="Print summary"><span aria-hidden="true">🖨️</span> Print</button>
                 </div>
             </div>
         </div>
 
         <div class="row mt-4">
-            <div class="col-md-8">
+            <div class="col-md-8" id="main-content" role="main">
                 @* Meeting Metadata *@
                 <div class="card mb-3">
                     <div class="card-header">
-                        <h5>📋 Meeting Information</h5>
+                        <h5><span aria-hidden="true">📋</span> Meeting Information</h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
