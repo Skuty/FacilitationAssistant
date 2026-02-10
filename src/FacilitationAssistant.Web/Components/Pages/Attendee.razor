@@ -234,31 +234,13 @@ else
             <div class="col-md-4">
                 <div class="card mb-3">
                     <div class="card-header bg-warning">
-                        <h6 class="mb-0">⚠️ Raise a Concern</h6>
+                        <h6 class="mb-0">⚠️ Concerns</h6>
                     </div>
                     <div class="card-body">
-                        <select class="form-select mb-2" @bind="selectedConcernType">
-                            <option value="">Select concern type...</option>
-                            <option value="Too Fast">Too Fast</option>
-                            <option value="Too Slow">Too Slow</option>
-                            <option value="Unclear">Unclear</option>
-                            <option value="Technical Issue">Technical Issue</option>
-                            <option value="Other">Other</option>
-                        </select>
-
-                        @if (selectedConcernType == "Other")
-                        {
-                            <textarea class="form-control mb-2" 
-                                      placeholder="Describe your concern..."
-                                      @bind="customConcernText"
-                                      rows="2"
-                                      maxlength="500"></textarea>
-                        }
-
-                        <button class="btn btn-warning btn-sm" 
-                                @onclick="RaiseConcern"
-                                disabled="@string.IsNullOrEmpty(selectedConcernType)">
-                            Raise Concern
+                        <button class="btn btn-warning btn-sm w-100" 
+                                @onclick="OpenConcernModal"
+                                aria-label="Raise a concern">
+                            ⚠️ Raise a Concern
                         </button>
                     </div>
                 </div>
@@ -615,6 +597,96 @@ else
         </div>
     }
 
+    @* Concern Modal *@
+    @if (showConcernModal)
+    {
+        <div class="modal show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="concernModalTitle" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="concernModalTitle">⚠️ Raise a Concern</h5>
+                        <button type="button" class="btn-close" @onclick="CloseConcernModal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">
+                            <small>Select a predefined concern or describe a custom issue.</small>
+                        </p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Concern Type</label>
+                            <div class="d-grid gap-2">
+                                <button type="button" 
+                                        class="btn @(selectedConcernType == "Meeting Overrunning" ? "btn-warning" : "btn-outline-warning") text-start"
+                                        @onclick='() => { selectedConcernType = "Meeting Overrunning"; customConcernText = string.Empty; concernValidationError = null; }'>
+                                    ⏱️ Meeting Overrunning
+                                </button>
+                                <button type="button" 
+                                        class="btn @(selectedConcernType == "Topic Unclear" ? "btn-warning" : "btn-outline-warning") text-start"
+                                        @onclick='() => { selectedConcernType = "Topic Unclear"; customConcernText = string.Empty; concernValidationError = null; }'>
+                                    ❓ Topic Unclear
+                                </button>
+                                <button type="button" 
+                                        class="btn @(selectedConcernType == "Technical Issue" ? "btn-warning" : "btn-outline-warning") text-start"
+                                        @onclick='() => { selectedConcernType = "Technical Issue"; customConcernText = string.Empty; concernValidationError = null; }'>
+                                    🔧 Technical Issue
+                                </button>
+                                <button type="button" 
+                                        class="btn @(selectedConcernType == "Need Break" ? "btn-warning" : "btn-outline-warning") text-start"
+                                        @onclick='() => { selectedConcernType = "Need Break"; customConcernText = string.Empty; concernValidationError = null; }'>
+                                    ☕ Need Break
+                                </button>
+                                <button type="button" 
+                                        class="btn @(selectedConcernType == "Custom Reason" ? "btn-warning" : "btn-outline-warning") text-start"
+                                        @onclick='() => { selectedConcernType = "Custom Reason"; concernValidationError = null; }'>
+                                    ✏️ Custom Reason
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (selectedConcernType == "Custom Reason")
+                        {
+                            <div class="mb-3">
+                                <label class="form-label">Describe your concern (10-200 characters)</label>
+                                <textarea class="form-control @(concernValidationError != null ? "is-invalid" : "")" 
+                                          placeholder="Describe your concern..."
+                                          @bind="customConcernText"
+                                          rows="3"
+                                          maxlength="200"></textarea>
+                                <div class="form-text">
+                                    @customConcernText.Length / 200 characters
+                                </div>
+                                @if (concernValidationError != null)
+                                {
+                                    <div class="invalid-feedback d-block">@concernValidationError</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseConcernModal">Cancel</button>
+                        <button type="button" 
+                                class="btn btn-warning" 
+                                @onclick="RaiseConcern"
+                                disabled="@string.IsNullOrEmpty(selectedConcernType)">
+                            Submit Concern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Concern Confirmation Toast *@
+    @if (showConcernConfirmation)
+    {
+        <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong>✓ Concern raised</strong> - Your concern has been submitted to the facilitator.
+                <button type="button" class="btn-close" @onclick="() => showConcernConfirmation = false"></button>
+            </div>
+        </div>
+    }
+
     @* Attendee Messages *@
     @if (meeting != null)
     {
@@ -648,6 +720,9 @@ else
     private Guid? deletingNoteId = null;
     private string selectedConcernType = string.Empty;
     private string customConcernText = string.Empty;
+    private bool showConcernModal = false;
+    private string? concernValidationError = null;
+    private bool showConcernConfirmation = false;
 
     // Question UI fields
     private List<Question> pendingQuestions = new();
@@ -966,22 +1041,70 @@ else
         await LoadMeeting();
     }
 
+    private void OpenConcernModal()
+    {
+        selectedConcernType = string.Empty;
+        customConcernText = string.Empty;
+        concernValidationError = null;
+        showConcernModal = true;
+    }
+
+    private void CloseConcernModal()
+    {
+        showConcernModal = false;
+        selectedConcernType = string.Empty;
+        customConcernText = string.Empty;
+        concernValidationError = null;
+    }
+
     private async Task RaiseConcern()
     {
         if (meeting == null || string.IsNullOrEmpty(selectedConcernType)) return;
+
+        // Validate custom text if "Custom Reason" is selected
+        if (selectedConcernType == "Custom Reason")
+        {
+            if (string.IsNullOrWhiteSpace(customConcernText))
+            {
+                concernValidationError = "Please provide a description for your custom concern.";
+                return;
+            }
+            if (customConcernText.Length < 10)
+            {
+                concernValidationError = "Custom concern must be at least 10 characters.";
+                return;
+            }
+            if (customConcernText.Length > 200)
+            {
+                concernValidationError = "Custom concern must be no more than 200 characters.";
+                return;
+            }
+        }
+
+        concernValidationError = null;
 
         var command = new RaiseConcernCommand(
             meeting.Id,
             sessionId,
             selectedConcernType,
-            selectedConcernType == "Other" ? customConcernText : null
+            selectedConcernType == "Custom Reason" ? customConcernText : null
         );
 
         await Mediator.Send(command);
+        
+        // Close modal and show confirmation
+        showConcernModal = false;
+        showConcernConfirmation = true;
         selectedConcernType = string.Empty;
         customConcernText = string.Empty;
+        
         await LoadMeeting();
         await LoadConcerns();
+        
+        // Hide confirmation after 3 seconds
+        await Task.Delay(3000);
+        showConcernConfirmation = false;
+        StateHasChanged();
     }
 
     private async Task LoadConcerns()

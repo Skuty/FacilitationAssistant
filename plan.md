@@ -7,6 +7,27 @@ This document outlines the step-by-step plan for implementing the remaining feat
 - [~] In Progress
 - [x] Completed
 
+## Phase 0a: Concerns Modal Interface Enhancement
+*Goal: Align concern raising interface with specification requirements.*
+
+- [x] **Modal-Based Concern Raising**
+    - Feature: Replace dropdown-based concern UI with modal interface as specified.
+    - Spec: [Concerns & Feedback Spec](docs/features/concerns-feedback/spec.md) (AC1-AC5)
+    - Details:
+        - Modal dialog triggered by "Raise a Concern" button.
+        - Predefined concern options as buttons: "Meeting Overrunning", "Topic Unclear", "Technical Issue", "Need Break", "Custom Reason".
+        - Custom text validation (10-200 characters) for "Custom Reason" option.
+        - Success confirmation toast after submission.
+        - Modal can be cancelled without submitting.
+    - Implementation:
+        - Replaced card-based concern UI with button that opens modal
+        - Created modal with predefined concern buttons using Bootstrap styling
+        - Implemented "Custom Reason" option with textarea and character counter
+        - Added validation for custom text (min 10, max 200 characters) with error messages
+        - Added confirmation toast that auto-dismisses after 3 seconds
+        - Modal includes proper ARIA attributes for accessibility (role="dialog", aria-modal="true", aria-labelledby)
+        - Successfully tested: application builds, all 8 tests pass, code review validates implementation
+
 ## Phase 0: Communication & Messaging
 *Goal: Enable facilitators to broadcast messages and questions to attendees during meetings.*
 
