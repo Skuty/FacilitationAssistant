@@ -80,6 +80,7 @@ else
                         <small>Facilitator View | Status: @meeting.Status</small>
                     </div>
                     <div>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="() => showSettings = true" title="Settings">⚙️</button>
                         <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowTourManually" title="Show Tour">❓</button>
                         @if (meeting.Status == MeetingStatus.Setup)
                         {
@@ -737,6 +738,9 @@ else
     <TourOverlay @ref="tourOverlay" 
                  TourKey="facilitator-tour-seen"
                  Steps="GetFacilitatorTourSteps()" />
+
+    @* Settings Modal *@
+    <SettingsModal IsOpen="showSettings" IsOpenChanged="async (isOpen) => { showSettings = isOpen; StateHasChanged(); }" />
 }
 
 @code {
@@ -746,6 +750,7 @@ else
     private Meeting? meeting;
     private bool showLinksPanel = false;
     private bool showEndMeetingDialog = false;
+    private bool showSettings = false;
     private System.Threading.Timer? refreshTimer;
     
     // Security: Link management

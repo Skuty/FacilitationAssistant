@@ -42,6 +42,7 @@ else
                         <small>Attendee View | 🎭 Attendee #@GetAttendeeNumber()</small>
                     </div>
                     <div>
+                        <button class="btn btn-sm btn-outline-light me-2" @onclick="() => showSettings = true" title="Settings">⚙️</button>
                         <button class="btn btn-sm btn-outline-light me-2" @onclick="ShowWelcomeManually" title="Show Welcome">❓</button>
                         @if (meeting.StartedAt != null)
                         {
@@ -610,6 +611,9 @@ else
 
     @* Welcome Modal *@
     <AttendeeWelcome @ref="attendeeWelcome" AttendeeNumber="@GetAttendeeNumber()" />
+
+    @* Settings Modal *@
+    <SettingsModal IsOpen="showSettings" IsOpenChanged="async (isOpen) => { showSettings = isOpen; StateHasChanged(); }" />
 }
 
 @code {
@@ -619,6 +623,7 @@ else
     private Meeting? meeting;
     private System.Threading.Timer? refreshTimer;
     private string sessionId = Guid.NewGuid().ToString();
+    private bool showSettings = false;
     
     // Concerns
     private List<Concern> concerns = new();

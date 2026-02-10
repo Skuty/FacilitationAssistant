@@ -58,3 +58,208 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* ===== Theme Variables ===== */
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --link-color: #006bb7;
+    --btn-primary-bg: #1b6ec2;
+    --btn-primary-border: #1861ac;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #e9ecef;
+    --text-secondary: #adb5bd;
+    --border-color: #495057;
+    --link-color: #4dabf7;
+    --btn-primary-bg: #3d8fd1;
+    --btn-primary-border: #3582c4;
+}
+
+[data-theme="dark"] body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .card {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] a {
+    color: var(--link-color);
+}
+
+/* High Contrast Mode */
+.high-contrast {
+    --bg-primary: #000000;
+    --bg-secondary: #1a1a1a;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --border-color: #ffffff;
+    --link-color: #00bfff;
+}
+
+.high-contrast .btn {
+    border-width: 2px;
+}
+
+.high-contrast .card {
+    border-width: 2px;
+}
+
+/* Reduced Motion */
+.reduced-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}
+
+/* ===== Settings Modal ===== */
+.settings-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.settings-modal.open {
+    display: flex;
+}
+
+.settings-content {
+    background-color: var(--bg-primary, #ffffff);
+    color: var(--text-primary, #212529);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+}
+
+.settings-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.btn-close-settings {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6c757d);
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.btn-close-settings:hover {
+    background-color: var(--bg-secondary, #f8f9fa);
+    color: var(--text-primary, #212529);
+}
+
+.settings-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.settings-section {
+    margin-bottom: 2rem;
+}
+
+.settings-section:last-child {
+    margin-bottom: 0;
+}
+
+.settings-section h4 {
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary, #212529);
+}
+
+.setting-item {
+    margin-bottom: 1.5rem;
+}
+
+.setting-item:last-child {
+    margin-bottom: 0;
+}
+
+.setting-item label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary, #212529);
+}
+
+.setting-item .form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6c757d);
+}
+
+.settings-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color, #dee2e6);
+}
+
+.settings-footer button {
+    padding: 0.5rem 1rem;
+}
+
+/* Settings Icon Button */
+.btn-settings {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: var(--text-secondary, #6c757d);
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-settings:hover {
+    background-color: var(--bg-secondary, #f8f9fa);
+    color: var(--text-primary, #212529);
+}

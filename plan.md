@@ -221,3 +221,28 @@ This document outlines the step-by-step plan for implementing the remaining feat
           - Automatic navigation to new URL after regeneration
         - Successfully tested: application builds, all 8 tests pass, UI validated with Playwright
         - Verified: link obfuscation, reveal/hide toggle, and link regeneration all working correctly
+
+## Phase 7: User Experience & Customization
+*Goal: Improve usability and allow personalization.*
+
+- [x] **User Settings & Preferences**
+    - Feature: Personalize interface appearance and behavior.
+    - Spec: [User Settings Spec](docs/features/user-settings/spec.md) (AC1-AC8)
+    - Details:
+        - Theme selection (System/Light/Dark).
+        - Sound and toast notification controls.
+        - Accessibility options (Reduced Motion, High Contrast).
+        - LocalStorage persistence.
+    - Implementation:
+        - Created `settings.js` JavaScript interop for localStorage management
+        - Implemented theme system with CSS variables supporting light/dark modes
+        - Created `SettingsModal` component with 3 sections: Appearance, Notifications, Accessibility
+        - Added settings gear (⚙️) button to both Facilitator and Attendee views
+        - Theme options: System (auto-detect), Light, Dark with instant preview
+        - Notification toggles: Sound Effects and Toast Notifications
+        - Accessibility options: Reduced Motion (with OS-level detection) and High Contrast
+        - All settings persist to localStorage and apply immediately without reload
+        - Respects OS-level reduced motion preference automatically
+        - "Reset to Defaults" button to restore original settings
+        - Successfully tested: application builds, all 8 tests pass, UI validated with Playwright
+        - Verified: settings modal opens/closes correctly, all controls functional

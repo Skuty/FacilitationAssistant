@@ -1,0 +1,256 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<div class="settings-modal @(IsOpen ? "open" : "")" @onclick="HandleBackdropClick">
+    <div class="settings-content" @onclick:stopPropagation>
+        <div class="settings-header">
+            <h3>⚙️ Settings</h3>
+            <button class="btn-close-settings" @onclick="Close" aria-label="Close settings">✕</button>
+        </div>
+
+        <div class="settings-body">
+            <!-- Appearance Section -->
+            <section class="settings-section">
+                <h4>Appearance</h4>
+                <div class="setting-item">
+                    <label for="theme-select">Theme</label>
+                    <select id="theme-select" class="form-select" @bind="Theme" @bind:after="OnThemeChanged">
+                        <option value="system">System</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                    <small class="form-text text-muted">Adapts to your system preference when set to "System"</small>
+                </div>
+            </section>
+
+            <!-- Notifications Section -->
+            <section class="settings-section">
+                <h4>Notifications</h4>
+                <div class="setting-item">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="sound-toggle" 
+                               @bind="SoundEnabled" @bind:after="OnSettingsChanged">
+                        <label class="form-check-label" for="sound-toggle">
+                            Sound Effects
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">Timer alerts, new messages, and concerns</small>
+                </div>
+                <div class="setting-item">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="toast-toggle" 
+                               @bind="ToastEnabled" @bind:after="OnSettingsChanged">
+                        <label class="form-check-label" for="toast-toggle">
+                            Toast Notifications
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">Pop-up messages for important events</small>
+                </div>
+            </section>
+
+            <!-- Accessibility Section -->
+            <section class="settings-section">
+                <h4>Accessibility</h4>
+                <div class="setting-item">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="reduced-motion-toggle" 
+                               @bind="ReducedMotion" @bind:after="OnMotionChanged" disabled="@HasOSReducedMotion">
+                        <label class="form-check-label" for="reduced-motion-toggle">
+                            Reduced Motion
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">
+                        @if (HasOSReducedMotion)
+                        {
+                            <span>✓ Enabled automatically by your system settings</span>
+                        }
+                        else
+                        {
+                            <span>Minimizes animations and transitions</span>
+                        }
+                    </small>
+                </div>
+                <div class="setting-item">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="high-contrast-toggle" 
+                               @bind="HighContrast" @bind:after="OnContrastChanged">
+                        <label class="form-check-label" for="high-contrast-toggle">
+                            High Contrast
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">Increases color contrast for better visibility</small>
+                </div>
+            </section>
+        </div>
+
+        <div class="settings-footer">
+            <button class="btn btn-secondary" @onclick="ResetToDefaults">Reset to Defaults</button>
+            <button class="btn btn-primary" @onclick="Close">Done</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IJSObjectReference? _jsModule;
+    private bool _initialized = false;
+
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    // Settings properties
+    private string Theme { get; set; } = "system";
+    private bool SoundEnabled { get; set; } = true;
+    private bool ToastEnabled { get; set; } = true;
+    private bool ReducedMotion { get; set; } = false;
+    private bool HighContrast { get; set; } = false;
+    private bool HasOSReducedMotion { get; set; } = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("eval", "window.settingsHelper");
+                await LoadSettings();
+                HasOSReducedMotion = await _jsModule.InvokeAsync<bool>("hasOSReducedMotion");
+                _initialized = true;
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to initialize settings: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task LoadSettings()
+    {
+        if (_jsModule == null) return;
+
+        try
+        {
+            var settings = await _jsModule.InvokeAsync<SettingsData>("loadSettings");
+            Theme = settings.Theme;
+            SoundEnabled = settings.SoundEnabled;
+            ToastEnabled = settings.ToastEnabled;
+            ReducedMotion = settings.ReducedMotion;
+            HighContrast = settings.HighContrast;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load settings: {ex.Message}");
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        if (_jsModule == null || !_initialized) return;
+
+        try
+        {
+            var settings = new SettingsData
+            {
+                Theme = Theme,
+                SoundEnabled = SoundEnabled,
+                ToastEnabled = ToastEnabled,
+                ReducedMotion = ReducedMotion,
+                HighContrast = HighContrast
+            };
+
+            await _jsModule.InvokeAsync<bool>("saveSettings", settings);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to save settings: {ex.Message}");
+        }
+    }
+
+    private async Task OnThemeChanged()
+    {
+        if (_jsModule != null && _initialized)
+        {
+            await _jsModule.InvokeVoidAsync("applyTheme", Theme);
+            await SaveSettings();
+        }
+    }
+
+    private async Task OnSettingsChanged()
+    {
+        await SaveSettings();
+    }
+
+    private async Task OnMotionChanged()
+    {
+        if (ReducedMotion)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", "document.documentElement.classList.add('reduced-motion')");
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("eval", "document.documentElement.classList.remove('reduced-motion')");
+        }
+        await SaveSettings();
+    }
+
+    private async Task OnContrastChanged()
+    {
+        if (HighContrast)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", "document.documentElement.classList.add('high-contrast')");
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("eval", "document.documentElement.classList.remove('high-contrast')");
+        }
+        await SaveSettings();
+    }
+
+    private async Task ResetToDefaults()
+    {
+        Theme = "system";
+        SoundEnabled = true;
+        ToastEnabled = true;
+        ReducedMotion = false;
+        HighContrast = false;
+
+        await JSRuntime.InvokeVoidAsync("eval", "document.documentElement.classList.remove('reduced-motion', 'high-contrast')");
+        
+        if (_jsModule != null && _initialized)
+        {
+            await _jsModule.InvokeVoidAsync("applyTheme", "system");
+            await SaveSettings();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        await Close();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule != null)
+        {
+            await _jsModule.DisposeAsync();
+        }
+    }
+
+    // Data class for JS interop
+    private class SettingsData
+    {
+        public string Theme { get; set; } = "system";
+        public bool SoundEnabled { get; set; } = true;
+        public bool ToastEnabled { get; set; } = true;
+        public bool ReducedMotion { get; set; } = false;
+        public bool HighContrast { get; set; } = false;
+    }
+}
