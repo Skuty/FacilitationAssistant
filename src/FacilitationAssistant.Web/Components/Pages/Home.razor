@@ -90,8 +90,8 @@
             var command = new CreateMeetingCommand(meetingTitle);
             var result = await Mediator.Send(command);
             
-            // Navigate to facilitator setup page
-            Navigation.NavigateTo($"/facilitator/{result.FacilitatorToken}");
+            // Navigate to meeting links confirmation page
+            Navigation.NavigateTo($"/meeting-links/{result.FacilitatorToken}/{result.AttendeeToken}");
         }
         catch (Exception ex)
         {

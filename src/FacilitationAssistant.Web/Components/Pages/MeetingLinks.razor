@@ -1,0 +1,216 @@
+@page "/meeting-links/{FacilitatorToken}/{AttendeeToken}"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Meeting Created - Facilitation Assistant</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-4">
+                <h1 class="display-5">✅ Meeting Created Successfully!</h1>
+                <p class="lead text-muted">Share these links to start your meeting</p>
+            </div>
+
+            <!-- Facilitator Link Card -->
+            <div class="card shadow-sm mb-4 border-primary" style="border-width: 2px;">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">🔐 Facilitator Link</h4>
+                    <small>⚠️ Keep this private - gives you full meeting control</small>
+                </div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <input type="text" 
+                               class="form-control" 
+                               id="facilitatorLink"
+                               readonly 
+                               value="@facilitatorUrl" 
+                               @onclick="SelectFacilitatorLink" />
+                        <button class="btn btn-outline-primary" 
+                                type="button" 
+                                @onclick="CopyFacilitatorLink">
+                            @if (facilitatorCopied)
+                            {
+                                <span>✓ Copied!</span>
+                            }
+                            else
+                            {
+                                <span>📋 Copy</span>
+                            }
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <div class="qr-code-placeholder bg-light p-3 d-inline-block" style="min-width: 200px; min-height: 200px;">
+                            <small class="text-muted">QR Code:<br/>@facilitatorUrl</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendee Link Card -->
+            <div class="card shadow-sm mb-4 border-success" style="border-width: 2px;">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">👥 Attendee Link</h4>
+                    <small>Share this with meeting participants</small>
+                </div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <input type="text" 
+                               class="form-control" 
+                               id="attendeeLink"
+                               readonly 
+                               value="@attendeeUrl" 
+                               @onclick="SelectAttendeeLink" />
+                        <button class="btn btn-outline-success" 
+                                type="button" 
+                                @onclick="CopyAttendeeLink">
+                            @if (attendeeCopied)
+                            {
+                                <span>✓ Copied!</span>
+                            }
+                            else
+                            {
+                                <span>📋 Copy</span>
+                            }
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <div class="qr-code-placeholder bg-light p-3 d-inline-block" style="min-width: 200px; min-height: 200px;">
+                            <small class="text-muted">QR Code:<br/>@attendeeUrl</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning Banner -->
+            <div class="alert alert-warning" role="alert">
+                <strong>⚠️ Important:</strong> Save these links! If you lose them, you won't be able to access your meeting.
+                <br/>
+                <strong>Do not share your Facilitator link publicly</strong> - it gives full control of the meeting.
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                <button class="btn btn-primary btn-lg" @onclick="GoToFacilitatorPage">
+                    Start Setting Up Meeting →
+                </button>
+                <button class="btn btn-outline-secondary btn-lg" @onclick="CreateAnother">
+                    Create Another Meeting
+                </button>
+            </div>
+
+            <!-- Tips -->
+            <div class="mt-5 text-center">
+                <h5 class="text-muted">Next Steps:</h5>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="p-3">
+                            <h6>1. Set Up Agenda</h6>
+                            <small class="text-muted">Click "Start Setting Up" to add stages</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3">
+                            <h6>2. Share Attendee Link</h6>
+                            <small class="text-muted">Send via email, chat, or calendar</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3">
+                            <h6>3. Start Meeting</h6>
+                            <small class="text-muted">Begin when everyone is ready</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string FacilitatorToken { get; set; } = string.Empty;
+
+    [Parameter]
+    public string AttendeeToken { get; set; } = string.Empty;
+
+    private string facilitatorUrl = string.Empty;
+    private string attendeeUrl = string.Empty;
+    private bool facilitatorCopied = false;
+    private bool attendeeCopied = false;
+
+    protected override void OnInitialized()
+    {
+        var baseUrl = Navigation.BaseUri.TrimEnd('/');
+        facilitatorUrl = $"{baseUrl}/facilitator/{FacilitatorToken}";
+        attendeeUrl = $"{baseUrl}/attendee/{AttendeeToken}";
+    }
+
+    private async Task SelectFacilitatorLink()
+    {
+        await SelectText("facilitatorLink");
+    }
+
+    private async Task SelectAttendeeLink()
+    {
+        await SelectText("attendeeLink");
+    }
+
+    private async Task CopyFacilitatorLink()
+    {
+        await CopyToClipboard(facilitatorUrl, "facilitator");
+    }
+
+    private async Task CopyAttendeeLink()
+    {
+        await CopyToClipboard(attendeeUrl, "attendee");
+    }
+
+    private async Task SelectText(string elementId)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{elementId}').select()");
+        }
+        catch { /* Ignore JS interop errors */ }
+    }
+
+    private async Task CopyToClipboard(string text, string type)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            
+            if (type == "facilitator")
+            {
+                facilitatorCopied = true;
+                await Task.Delay(2000);
+                facilitatorCopied = false;
+            }
+            else
+            {
+                attendeeCopied = true;
+                await Task.Delay(2000);
+                attendeeCopied = false;
+            }
+            
+            StateHasChanged();
+        }
+        catch
+        {
+            // Fallback for browsers that don't support clipboard API
+            await SelectText(type == "facilitator" ? "facilitatorLink" : "attendeeLink");
+        }
+    }
+
+    private void GoToFacilitatorPage()
+    {
+        Navigation.NavigateTo($"/facilitator/{FacilitatorToken}");
+    }
+
+    private void CreateAnother()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
