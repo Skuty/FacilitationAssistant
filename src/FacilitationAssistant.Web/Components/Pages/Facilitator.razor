@@ -729,6 +729,9 @@ else
                             }
                         </div>
                     </div>
+
+                    @* Message Management *@
+                    <MessageManager MeetingId="@meeting.Id" OnMessageSent="RefreshMessages" @ref="messageManager" />
                 </div>
             </div>
         }
@@ -790,6 +793,9 @@ else
     private string? newQuestionAssociatedStageId = null;
     private string questionError = string.Empty;
     private Dictionary<Guid, QuestionResultsDto> questionResults = new();
+
+    // Message management
+    private MessageManager? messageManager;
 
     protected override async Task OnInitializedAsync()
     {
@@ -1375,5 +1381,11 @@ else
         {
             await tourOverlay.ShowTour();
         }
+    }
+
+    private async Task RefreshMessages()
+    {
+        // Message sent or changed - trigger refresh via SignalR if needed
+        StateHasChanged();
     }
 }

@@ -1,0 +1,221 @@
+@using FacilitationAssistant.Core.Entities
+@using FacilitationAssistant.Core.Commands
+@using FacilitationAssistant.Core.Queries
+@using Mediator
+@inject IMediator Mediator
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">📩 Messages (@messages.Count)</h5>
+        <button class="btn btn-sm btn-primary" @onclick="ShowComposer">+ Send Message</button>
+    </div>
+    <div class="card-body">
+        @if (showComposer)
+        {
+            <div class="border rounded p-3 mb-3">
+                <h6>Compose Message</h6>
+                <div class="mb-3">
+                    <label class="form-label">Message Text</label>
+                    <textarea class="form-control" rows="3" maxlength="1000" @bind="messageText" placeholder="Enter message text (max 1000 characters)"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Message Type</label>
+                    <select class="form-select" @bind="messageType">
+                        <option value="@MessageType.Announcement">Announcement</option>
+                        <option value="@MessageType.Question">Question</option>
+                    </select>
+                </div>
+                @if (messageType == MessageType.Question)
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Response Type</label>
+                        <select class="form-select" @bind="responseType">
+                            <option value="">Select...</option>
+                            <option value="@MessageResponseType.Reactions">Reactions (👍 👎 ❤️ 😂 😮)</option>
+                            <option value="@MessageResponseType.PredefinedAnswers">Predefined Answers</option>
+                            <option value="@MessageResponseType.FreeText">Free Text</option>
+                        </select>
+                    </div>
+                    @if (responseType == MessageResponseType.PredefinedAnswers)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Answer Options (2-6 options)</label>
+                            @foreach (var (option, index) in predefinedOptions.Select((o, i) => (o, i)))
+                            {
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" maxlength="100" @bind="predefinedOptions[index]" placeholder="Option @(index + 1)" />
+                                    @if (predefinedOptions.Count > 2)
+                                    {
+                                        <button class="btn btn-outline-danger" @onclick="() => RemoveOption(index)">✖</button>
+                                    }
+                                </div>
+                            }
+                            @if (predefinedOptions.Count < 6)
+                            {
+                                <button class="btn btn-sm btn-secondary" @onclick="AddOption">+ Add Option</button>
+                            }
+                        </div>
+                    }
+                }
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" @onclick="SendMessage" disabled="@(!CanSendMessage())">Send</button>
+                    <button class="btn btn-secondary" @onclick="CancelComposer">Cancel</button>
+                </div>
+            </div>
+        }
+
+        @if (messages.Any())
+        {
+            <div class="list-group">
+                @foreach (var message in messages.OrderByDescending(m => m.CreatedAt))
+                {
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge @(message.Type == MessageType.Announcement ? "bg-info" : "bg-primary") me-2">
+                                        @(message.Type == MessageType.Announcement ? "📢 Announcement" : "❓ Question")
+                                    </span>
+                                    <small class="text-muted">@message.CreatedAt.ToString("HH:mm")</small>
+                                    @if (message.IsClosed)
+                                    {
+                                        <span class="badge bg-secondary ms-2">Closed</span>
+                                    }
+                                </div>
+                                <p class="mb-2">@message.Text</p>
+                                <small class="text-muted">@message.ResponseCount responses</small>
+                            </div>
+                            <div>
+                                @if (!message.IsClosed)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => CloseMessage(message.Id)">Close</button>
+                                }
+                                <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => ViewMessageDetails(message.Id)">View</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted text-center mb-0">No messages sent yet</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid MeetingId { get; set; }
+    [Parameter] public EventCallback OnMessageSent { get; set; }
+    
+    private List<MessageDto> messages = new();
+    private bool showComposer = false;
+    private string messageText = "";
+    private MessageType messageType = MessageType.Announcement;
+    private MessageResponseType? responseType = null;
+    private List<string> predefinedOptions = new() { "", "" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMessages();
+    }
+
+    private async Task LoadMessages()
+    {
+        messages = await Mediator.Send(new GetMessagesByMeetingQuery(MeetingId));
+    }
+
+    private void ShowComposer()
+    {
+        showComposer = true;
+        messageText = "";
+        messageType = MessageType.Announcement;
+        responseType = null;
+        predefinedOptions = new() { "", "" };
+    }
+
+    private void CancelComposer()
+    {
+        showComposer = false;
+    }
+
+    private void AddOption()
+    {
+        if (predefinedOptions.Count < 6)
+        {
+            predefinedOptions.Add("");
+        }
+    }
+
+    private void RemoveOption(int index)
+    {
+        if (predefinedOptions.Count > 2)
+        {
+            predefinedOptions.RemoveAt(index);
+        }
+    }
+
+    private bool CanSendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(messageText)) return false;
+        if (messageType == MessageType.Question && !responseType.HasValue) return false;
+        if (responseType == MessageResponseType.PredefinedAnswers)
+        {
+            var validOptions = predefinedOptions.Where(o => !string.IsNullOrWhiteSpace(o)).ToList();
+            if (validOptions.Count < 2) return false;
+        }
+        return true;
+    }
+
+    private async Task SendMessage()
+    {
+        try
+        {
+            var validOptions = responseType == MessageResponseType.PredefinedAnswers
+                ? predefinedOptions.Where(o => !string.IsNullOrWhiteSpace(o)).ToList()
+                : null;
+
+            await Mediator.Send(new CreateMessageCommand(
+                MeetingId,
+                messageText,
+                messageType,
+                responseType,
+                validOptions
+            ));
+
+            showComposer = false;
+            await LoadMessages();
+            await OnMessageSent.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending message: {ex.Message}");
+        }
+    }
+
+    private async Task CloseMessage(Guid messageId)
+    {
+        try
+        {
+            await Mediator.Send(new CloseMessageCommand(messageId));
+            await LoadMessages();
+            await OnMessageSent.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error closing message: {ex.Message}");
+        }
+    }
+
+    private void ViewMessageDetails(Guid messageId)
+    {
+        // TODO: Implement message details view
+        Console.WriteLine($"View message details: {messageId}");
+    }
+
+    public async Task Refresh()
+    {
+        await LoadMessages();
+        StateHasChanged();
+    }
+}

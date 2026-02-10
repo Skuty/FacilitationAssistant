@@ -1,0 +1,240 @@
+@using FacilitationAssistant.Core.Entities
+@using FacilitationAssistant.Core.Commands
+@using FacilitationAssistant.Core.Queries
+@using Mediator
+@inject IMediator Mediator
+
+@if (currentMessage != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header @(currentMessage.Type == MessageType.Announcement ? "bg-info" : "bg-primary") text-white">
+                    <h5 class="modal-title">
+                        @(currentMessage.Type == MessageType.Announcement ? "📢 Announcement" : "❓ Question")
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="DismissMessage"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">@currentMessage.Text</p>
+                    <small class="text-muted">Sent at @currentMessage.CreatedAt.ToString("HH:mm")</small>
+
+                    @if (currentMessage.Type == MessageType.Question && !currentMessage.IsClosed && !hasResponded)
+                    {
+                        @if (currentMessage.ResponseType == MessageResponseType.Reactions)
+                        {
+                            <hr />
+                            <div class="d-flex gap-2 justify-content-center">
+                                <button class="btn btn-lg btn-outline-secondary" @onclick="@(() => RespondWithReaction("👍"))">👍</button>
+                                <button class="btn btn-lg btn-outline-secondary" @onclick="@(() => RespondWithReaction("👎"))">👎</button>
+                                <button class="btn btn-lg btn-outline-secondary" @onclick="@(() => RespondWithReaction("❤️"))">❤️</button>
+                                <button class="btn btn-lg btn-outline-secondary" @onclick="@(() => RespondWithReaction("😂"))">😂</button>
+                                <button class="btn btn-lg btn-outline-secondary" @onclick="@(() => RespondWithReaction("😮"))">😮</button>
+                            </div>
+                        }
+                        else if (currentMessage.ResponseType == MessageResponseType.PredefinedAnswers && messageDetails != null)
+                        {
+                            <hr />
+                            <div class="d-grid gap-2">
+                                @foreach (var option in messageDetails.Options)
+                                {
+                                    <button class="btn btn-outline-primary" @onclick="() => RespondWithOption(option.Id)">
+                                        @option.Text
+                                    </button>
+                                }
+                            </div>
+                        }
+                        else if (currentMessage.ResponseType == MessageResponseType.FreeText)
+                        {
+                            <hr />
+                            <textarea class="form-control mb-2" rows="3" maxlength="500" @bind="freeTextResponse" placeholder="Enter your response (max 500 characters)"></textarea>
+                            <button class="btn btn-primary" @onclick="RespondWithFreeText" disabled="@string.IsNullOrWhiteSpace(freeTextResponse)">Submit</button>
+                        }
+                    }
+                    else if (hasResponded)
+                    {
+                        <hr />
+                        <div class="alert alert-success mb-0">
+                            ✓ You have responded to this message
+                        </div>
+                    }
+                    else if (currentMessage.IsClosed)
+                    {
+                        <hr />
+                        <div class="alert alert-secondary mb-0">
+                            This message is closed and no longer accepting responses
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="DismissMessage">
+                        @(currentMessage.Type == MessageType.Announcement || hasResponded || currentMessage.IsClosed ? "Close" : "Skip")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (pendingMessages.Any() && currentMessage == null)
+{
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+        <div class="toast show" role="alert">
+            <div class="toast-header bg-primary text-white">
+                <strong class="me-auto">📩 New Message</strong>
+                <button type="button" class="btn-close btn-close-white" @onclick="DismissNotification"></button>
+            </div>
+            <div class="toast-body">
+                <p class="mb-2">@GetMessagePreview(pendingMessages.First())</p>
+                <button class="btn btn-sm btn-primary" @onclick="ShowNextMessage">View</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid MeetingId { get; set; }
+    [Parameter] public string SessionId { get; set; } = "";
+    
+    private List<MessageDto> pendingMessages = new();
+    private MessageDto? currentMessage = null;
+    private MessageDetailDto? messageDetails = null;
+    private bool hasResponded = false;
+    private string freeTextResponse = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPendingMessages();
+    }
+
+    private async Task LoadPendingMessages()
+    {
+        var allPending = await Mediator.Send(new GetPendingMessagesQuery(MeetingId, SessionId));
+        pendingMessages = allPending.Where(m => !m.UserHasResponded.GetValueOrDefault()).ToList();
+    }
+
+    private async Task ShowNextMessage()
+    {
+        if (!pendingMessages.Any()) return;
+
+        currentMessage = pendingMessages.First();
+        hasResponded = currentMessage.UserHasResponded.GetValueOrDefault();
+        freeTextResponse = "";
+
+        // Load full details if needed
+        if (currentMessage.Type == MessageType.Question && currentMessage.ResponseType == MessageResponseType.PredefinedAnswers)
+        {
+            messageDetails = await Mediator.Send(new GetMessageByIdQuery(currentMessage.Id, SessionId));
+        }
+
+        StateHasChanged();
+    }
+
+    private void DismissMessage()
+    {
+        currentMessage = null;
+        messageDetails = null;
+        pendingMessages.RemoveAt(0);
+        StateHasChanged();
+    }
+
+    private void DismissNotification()
+    {
+        pendingMessages.Clear();
+        StateHasChanged();
+    }
+
+    private async Task RespondWithReaction(string reaction)
+    {
+        if (currentMessage == null) return;
+
+        try
+        {
+            await Mediator.Send(new RespondToMessageCommand(
+                currentMessage.Id,
+                SessionId,
+                reaction,
+                null,
+                null
+            ));
+
+            hasResponded = true;
+            StateHasChanged();
+            await Task.Delay(1000); // Show success briefly
+            DismissMessage();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error responding to message: {ex.Message}");
+        }
+    }
+
+    private async Task RespondWithOption(Guid optionId)
+    {
+        if (currentMessage == null) return;
+
+        try
+        {
+            await Mediator.Send(new RespondToMessageCommand(
+                currentMessage.Id,
+                SessionId,
+                null,
+                optionId,
+                null
+            ));
+
+            hasResponded = true;
+            StateHasChanged();
+            await Task.Delay(1000); // Show success briefly
+            DismissMessage();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error responding to message: {ex.Message}");
+        }
+    }
+
+    private async Task RespondWithFreeText()
+    {
+        if (currentMessage == null || string.IsNullOrWhiteSpace(freeTextResponse)) return;
+
+        try
+        {
+            await Mediator.Send(new RespondToMessageCommand(
+                currentMessage.Id,
+                SessionId,
+                null,
+                null,
+                freeTextResponse
+            ));
+
+            hasResponded = true;
+            StateHasChanged();
+            await Task.Delay(1000); // Show success briefly
+            DismissMessage();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error responding to message: {ex.Message}");
+        }
+    }
+
+    private string GetMessagePreview(MessageDto message)
+    {
+        if (message.Text.Length <= 100) return message.Text;
+        return message.Text.Substring(0, 97) + "...";
+    }
+
+    public async Task Refresh()
+    {
+        await LoadPendingMessages();
+        if (pendingMessages.Any() && currentMessage == null)
+        {
+            // Auto-show first message
+            await ShowNextMessage();
+        }
+        StateHasChanged();
+    }
+
+    public int GetPendingCount() => pendingMessages.Count;
+}

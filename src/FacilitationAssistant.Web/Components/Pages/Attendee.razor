@@ -609,6 +609,12 @@ else
         </div>
     }
 
+    @* Attendee Messages *@
+    @if (meeting != null)
+    {
+        <AttendeeMessages MeetingId="@meeting.Id" SessionId="@sessionId" @ref="attendeeMessages" />
+    }
+
     @* Welcome Modal *@
     <AttendeeWelcome @ref="attendeeWelcome" AttendeeNumber="@GetAttendeeNumber()" />
 
@@ -672,6 +678,12 @@ else
             await LoadMeeting();
             await LoadActiveQuestions();
             await LoadConcerns();
+            
+            // Refresh messages
+            if (attendeeMessages != null)
+            {
+                await attendeeMessages.Refresh();
+            }
             
             // Check if meeting ended during the session
             if (meeting?.Status == MeetingStatus.Ended)
@@ -1060,6 +1072,9 @@ else
 
     // Welcome modal functionality
     private AttendeeWelcome? attendeeWelcome;
+    
+    // Message management
+    private AttendeeMessages? attendeeMessages;
 
     private string GetAttendeeNumber()
     {

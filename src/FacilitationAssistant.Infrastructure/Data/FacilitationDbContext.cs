@@ -19,6 +19,9 @@ public class FacilitationDbContext : DbContext
     public DbSet<Question> Questions { get; set; }
     public DbSet<QuestionOption> QuestionOptions { get; set; }
     public DbSet<QuestionResponse> QuestionResponses { get; set; }
+    public DbSet<Message> Messages { get; set; }
+    public DbSet<MessageOption> MessageOptions { get; set; }
+    public DbSet<MessageResponse> MessageResponses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -130,6 +133,38 @@ public class FacilitationDbContext : DbContext
             entity.HasOne(e => e.Question)
                 .WithMany(q => q.Responses)
                 .HasForeignKey(e => e.QuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Text).IsRequired().HasMaxLength(1000);
+            entity.HasOne(e => e.Meeting)
+                .WithMany(m => m.Messages)
+                .HasForeignKey(e => e.MeetingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MessageOption>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Text).IsRequired().HasMaxLength(100);
+            entity.HasOne(e => e.Message)
+                .WithMany(m => m.Options)
+                .HasForeignKey(e => e.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MessageResponse>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Reaction).HasMaxLength(10);
+            entity.Property(e => e.FreeText).HasMaxLength(500);
+            entity.HasOne(e => e.Message)
+                .WithMany(m => m.Responses)
+                .HasForeignKey(e => e.MessageId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

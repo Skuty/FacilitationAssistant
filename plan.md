@@ -7,6 +7,28 @@ This document outlines the step-by-step plan for implementing the remaining feat
 - [~] In Progress
 - [x] Completed
 
+## Phase 0: Communication & Messaging
+*Goal: Enable facilitators to broadcast messages and questions to attendees during meetings.*
+
+- [x] **Messaging & Communication System**
+    - Feature: Broadcast messages, announcements, and quick questions to attendees.
+    - Spec: [Messaging Spec](docs/features/messaging/spec.md) (AC1-AC38)
+    - Details:
+        - Message types (Announcement/Question).
+        - Response types (Reactions, Predefined Answers, Free Text).
+        - Real-time notifications for attendees.
+        - Message history and response tracking.
+    - Implementation:
+        - Created `Message`, `MessageOption`, and `MessageResponse` entities
+        - Created `CreateMessageCommand`, `RespondToMessageCommand`, and `CloseMessageCommand`
+        - Created query handlers: `GetMessagesByMeetingQuery`, `GetMessageByIdQuery`, `GetPendingMessagesQuery`
+        - Added `MessageManager` component to Facilitator view for composing and sending messages
+        - Added `AttendeeMessages` component to Attendee view with notification modals
+        - Messages support Announcements (no response) and Questions (with reactions, predefined answers, or free text)
+        - Attendees see modal notifications for new messages with response options
+        - Facilitator can view response counts and close messages
+        - Successfully tested: application builds, all 8 tests pass, UI verified
+
 ## Phase 1: Meeting Lifecycle & Summary
 *Goal: Allow meetings to be formally ended and provide a persistent record of what happened.*
 
@@ -246,3 +268,43 @@ This document outlines the step-by-step plan for implementing the remaining feat
         - "Reset to Defaults" button to restore original settings
         - Successfully tested: application builds, all 8 tests pass, UI validated with Playwright
         - Verified: settings modal opens/closes correctly, all controls functional
+
+## Phase 8: Messaging & Communication System
+*Goal: Enable facilitators to broadcast messages and gather structured responses from attendees.*
+
+- [x] **Messaging System**
+    - Feature: Facilitators can broadcast announcements and questions; attendees can respond.
+    - Spec: [Messaging System Spec](docs/features/messaging/spec.md) (AC1-AC38)
+    - Details:
+        - Message types: Announcement and Question.
+        - Response types: Reactions (👍 👎 ❤️ 😂 😮), Predefined Answers (2-6 options), Free Text (max 500 chars).
+        - Message history and response tracking.
+        - Real-time notifications for attendees.
+        - Facilitator view of aggregated responses.
+    - Implementation:
+        - Created `Message`, `MessageOption`, and `MessageResponse` entities with proper enums
+        - Created commands: `CreateMessageCommand`, `RespondToMessageCommand`, `CloseMessageCommand`
+        - Created queries: `GetMessagesByMeetingQuery`, `GetMessageByIdQuery`, `GetPendingMessagesQuery`
+        - Implemented handlers with input sanitization and validation:
+          - Message text max 1000 chars
+          - Predefined options 2-6, each max 100 chars
+          - Free text responses max 500 chars
+          - Reaction validation for emoji set
+        - Created `MessageManager` component for Facilitator view:
+          - Message composer with type selection (Announcement/Question)
+          - Response type configuration (Reactions/Predefined/FreeText)
+          - Dynamic option builder for predefined answers
+          - Message list with response counts
+          - Close message functionality
+        - Created `AttendeeMessages` component for Attendee view:
+          - Toast notification banner for new messages
+          - Modal overlay for message viewing and responding
+          - Support for all response types with proper UI
+          - FIFO queue for multiple pending messages
+          - Auto-refresh integration with polling timer
+        - Updated `FacilitationDbContext` with DbSets and entity configurations
+        - Updated `Meeting` entity with Messages navigation property
+        - Integrated components into Facilitator and Attendee pages
+        - Successfully tested: application builds, all 8 tests pass, UI components render correctly
+        - Verified: message system is functional and ready for use
+
