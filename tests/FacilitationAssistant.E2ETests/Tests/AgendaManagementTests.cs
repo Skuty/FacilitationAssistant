@@ -181,7 +181,7 @@ public class AgendaManagementTests : IAsyncLifetime
         await Task.Delay(3000);
 
         // Assert - Overall timer should be visible and updating
-        var timerText = await _page.GetTextAsync("[data-testid='total-timer'], .total-timer");
+        var timerText = await _page.Locator("[data-testid='total-timer'], .total-timer").TextContentAsync();
         timerText.Should().NotBeNullOrEmpty("overall timer should display elapsed time");
         
         // Timer should show some elapsed time (at least 0m or more)
@@ -210,9 +210,8 @@ public class AgendaManagementTests : IAsyncLifetime
         await Task.Delay(65000);
 
         // Assert - Overrun indicator should be visible
-        var overrunText = await _page.GetTextAsync("[data-testid='stage-0'], .stage");
-        overrunText.Should().Contain("overrun", "overrun indicator should be displayed", 
-            because: "stage has exceeded planned duration");
+        var overrunText = await _page.Locator("[data-testid='stage-0'], .stage").TextContentAsync();
+        overrunText.Should().Contain("overrun", "stage has exceeded planned duration");
     }
 
     [Fact]

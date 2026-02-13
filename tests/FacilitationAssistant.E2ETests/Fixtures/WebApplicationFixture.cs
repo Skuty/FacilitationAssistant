@@ -36,9 +36,10 @@ public class WebApplicationFixture : WebApplicationFactory<Program>, IAsyncLifet
         builder.UseUrls(BaseUrl);
     }
 
-    public new async Task InitializeAsync()
+    public new Task InitializeAsync()
     {
-        _host = await base.StartAsync();
+        // WebApplicationFactory creates the server automatically
+        return Task.CompletedTask;
     }
 
     public new async Task DisposeAsync()

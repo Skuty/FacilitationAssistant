@@ -197,7 +197,7 @@ public class RealTimeSyncTests : IAsyncLifetime
         await Task.Delay(5000);
 
         // Get timer values from both facilitator and attendee
-        var facilitatorTimer = await _page.GetTextAsync("[data-testid='timer'], .timer");
+        var facilitatorTimer = await _page.Locator("[data-testid='timer'], .timer").TextContentAsync();
         var attendeeTimer = await attendeePageObject.GetTimerTextAsync();
 
         // Assert - Timers should be similar (within 2 seconds tolerance due to network/render delays)

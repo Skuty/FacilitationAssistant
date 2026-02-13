@@ -82,7 +82,7 @@ public class ConcernsFeedbackTests : IAsyncLifetime
         await Task.Delay(2000);
 
         // Assert - Custom concern text should be visible
-        var concernText = await attendeePage.GetTextAsync("[data-testid='concern-item'], .concern");
+        var concernText = await attendeePage.Locator("[data-testid='concern-item'], .concern").TextContentAsync();
         concernText.Should().Contain(customText, "custom concern text should be displayed");
 
         await attendeePage.CloseAsync();
@@ -115,7 +115,7 @@ public class ConcernsFeedbackTests : IAsyncLifetime
         await Task.Delay(2000);
 
         // Assert - Vote count should be visible
-        var concernText = await attendee2Page.GetTextAsync("[data-testid='concern-item']:first-of-type");
+        var concernText = await attendee2Page.Locator("[data-testid='concern-item']:first-of-type").TextContentAsync();
         concernText.Should().Contain("1", "vote count should be displayed");
 
         await attendee1Page.CloseAsync();
@@ -143,7 +143,7 @@ public class ConcernsFeedbackTests : IAsyncLifetime
         await Task.Delay(2000);
 
         // Assert - Concern should show acknowledged status
-        var concernText = await _page!.GetTextAsync("[data-testid='concern-item']:first-of-type");
+        var concernText = await _page!.Locator("[data-testid='concern-item']:first-of-type").TextContentAsync();
         concernText.Should().Contain("Acknowledged", "concern should show acknowledged status");
 
         await attendeePage.CloseAsync();
@@ -169,7 +169,7 @@ public class ConcernsFeedbackTests : IAsyncLifetime
         await Task.Delay(2000);
 
         // Assert - Concern should be marked withdrawn
-        var concernText = await attendeePage.GetTextAsync("[data-testid='concern-item']:first-of-type");
+        var concernText = await attendeePage.Locator("[data-testid='concern-item']:first-of-type").TextContentAsync();
         concernText.Should().Contain("Withdrawn", "concern should show withdrawn status");
 
         await attendeePage.CloseAsync();

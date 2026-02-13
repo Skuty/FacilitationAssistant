@@ -153,7 +153,7 @@ public class PollingSystemTests : IAsyncLifetime
         resultsVisible.Should().BeTrue("facilitator should see poll results");
         
         // Check for response count
-        var resultsText = await _page.GetTextAsync("[data-testid='poll-results'], .results");
+        var resultsText = await _page.Locator("[data-testid='poll-results'], .results").TextContentAsync();
         resultsText.Should().Contain("2", "should show 2 responses");
 
         await attendee1.CloseAsync();

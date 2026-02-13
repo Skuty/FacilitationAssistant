@@ -8,11 +8,11 @@ namespace FacilitationAssistant.E2ETests.PageObjects;
 public class HomePage : BasePage
 {
     // Selectors
-    private const string CreateMeetingButton = "button:has-text('Create')";
-    private const string FacilitatorLinkInput = "[data-testid='facilitator-link'], input[readonly]:nth-of-type(1)";
-    private const string AttendeeLinkInput = "[data-testid='attendee-link'], input[readonly]:nth-of-type(2)";
-    private const string FacilitatorLinkCopy = "[data-testid='copy-facilitator-link']";
-    private const string AttendeeLinkCopy = "[data-testid='copy-attendee-link']";
+    private const string CreateMeetingButton = "button:has-text('Create Meeting')";
+    private const string FacilitatorLinkInput = "#facilitatorLink";
+    private const string AttendeeLinkInput = "#attendeeLink";
+    private const string FacilitatorLinkCopy = "button:has-text('Copy'):near(#facilitatorLink)";
+    private const string AttendeeLinkCopy = "button:has-text('Copy'):near(#attendeeLink)";
 
     public HomePage(IPage page, string baseUrl) : base(page, baseUrl)
     {
