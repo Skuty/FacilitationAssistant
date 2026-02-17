@@ -34,27 +34,33 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
-// Configure database based on appsettings
-var databaseProvider = builder.Configuration.GetValue<string>("Database:Provider") ?? "InMemory";
+// Configure database based on environment
+// CosmosDB credentials present? → Use CosmosDB (Azure production)
+// Otherwise → Use InMemory (Local development)
+var cosmosEndpoint = builder.Configuration.GetValue<string>("Database:ConnectionStrings:CosmosDB:AccountEndpoint");
+var cosmosKey = builder.Configuration.GetValue<string>("Database:ConnectionStrings:CosmosDB:AccountKey");
 
-if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
 {
-    // PostgreSQL - use scoped lifetime for proper transaction handling
-    var connectionString = builder.Configuration.GetConnectionString("PostgreSQL") 
-        ?? builder.Configuration.GetValue<string>("Database:ConnectionStrings:PostgreSQL");
+    // CosmosDB - Azure production environment
+    var databaseName = builder.Configuration.GetValue<string>("Database:ConnectionStrings:CosmosDB:DatabaseName") ?? "FacilitationAssistant";
     
     builder.Services.AddDbContext<FacilitationDbContext>(options =>
-        options.UseNpgsql(connectionString), ServiceLifetime.Scoped);
+        options.UseCosmos(cosmosEndpoint, cosmosKey, databaseName), ServiceLifetime.Scoped);
+    
+    Console.WriteLine($"Using CosmosDB: {databaseName}");
 }
 else
 {
-    // InMemory - use singleton lifetime to work with Mediator's singleton lifetime
+    // InMemory - Local development (default)
     var databaseName = builder.Configuration.GetConnectionString("InMemory") 
         ?? builder.Configuration.GetValue<string>("Database:ConnectionStrings:InMemory") 
         ?? "FacilitationDb";
     
     builder.Services.AddDbContext<FacilitationDbContext>(options =>
         options.UseInMemoryDatabase(databaseName), ServiceLifetime.Singleton);
+    
+    Console.WriteLine($"Using InMemory Database: {databaseName}");
 }
 
 // Add Mediator
@@ -82,5 +88,21 @@ app.MapRazorComponents<App>()
 
 // Map SignalR hub
 app.MapHub<MeetingHub>("/meetinghub");
+
+// Ensure database is created (important for CosmosDB)
+if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<FacilitationDbContext>();
+        await context.Database.EnsureCreatedAsync();
+        Console.WriteLine("Database initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Warning: Database initialization failed: {ex.Message}");
+    }
+}
 
 app.Run();
