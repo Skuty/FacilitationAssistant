@@ -1,6 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -15,11 +16,11 @@ public class WithdrawConcernHandler : ICommandHandler<WithdrawConcernCommand>
 
     public async ValueTask<Unit> Handle(WithdrawConcernCommand request, CancellationToken cancellationToken)
     {
-        var concern = await _context.Concerns.FindAsync(new object[] { request.ConcernId }, cancellationToken);
+        var concern = await _context.Concerns
+            .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
+            
         if (concern == null)
-        {
             throw new InvalidOperationException("Concern not found");
-        }
 
         // Only the person who raised the concern can withdraw it
         if (concern.SessionId != request.SessionId)

@@ -18,13 +18,14 @@ public class DeleteAgendaStageHandler : IRequestHandler<DeleteAgendaStageCommand
     public async ValueTask<Unit> Handle(DeleteAgendaStageCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
-            .Include(m => m.Stages)
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
             throw new InvalidOperationException("Meeting not found");
 
-        var stage = meeting.Stages.FirstOrDefault(s => s.Id == request.StageId);
+        var stage = await _context.AgendaStages
+            .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
+        
         if (stage == null)
             throw new InvalidOperationException("Stage not found");
 
@@ -35,10 +36,10 @@ public class DeleteAgendaStageHandler : IRequestHandler<DeleteAgendaStageCommand
         _context.AgendaStages.Remove(stage);
         
         // Reorder remaining stages to close the gap
-        var remainingStages = meeting.Stages
-            .Where(s => s.Id != request.StageId && s.OrderIndex > stage.OrderIndex)
+        var remainingStages = await _context.AgendaStages
+            .Where(s => s.MeetingId == request.MeetingId && s.OrderIndex > stage.OrderIndex)
             .OrderBy(s => s.OrderIndex)
-            .ToList();
+            .ToListAsync(cancellationToken);
 
         foreach (var remainingStage in remainingStages)
         {

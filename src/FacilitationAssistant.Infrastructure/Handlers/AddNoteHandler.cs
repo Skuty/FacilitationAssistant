@@ -18,6 +18,12 @@ public class AddNoteHandler : IRequestHandler<AddNoteCommand, Guid>
 
     public async ValueTask<Guid> Handle(AddNoteCommand request, CancellationToken cancellationToken)
     {
+        var meeting = await _context.Meetings
+            .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
+
+        if (meeting == null)
+            throw new InvalidOperationException("Meeting not found");
+
         // Check resource limit: max 100 notes per meeting
         var noteCount = await _context.Notes
             .CountAsync(n => n.MeetingId == request.MeetingId, cancellationToken);

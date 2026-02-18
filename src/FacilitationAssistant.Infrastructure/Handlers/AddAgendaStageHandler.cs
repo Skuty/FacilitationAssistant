@@ -19,7 +19,6 @@ public class AddAgendaStageHandler : IRequestHandler<AddAgendaStageCommand, Guid
     public async ValueTask<Guid> Handle(AddAgendaStageCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
-            .Include(m => m.Stages)
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)

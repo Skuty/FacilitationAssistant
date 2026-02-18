@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Data;
 
+/// <summary>
+/// DbContext for Facilitation Assistant using separate Cosmos DB containers.
+/// Each entity type is stored in its own container to avoid concurrency conflicts.
+/// </summary>
 public class FacilitationDbContext : DbContext
 {
     public FacilitationDbContext(DbContextOptions<FacilitationDbContext> options)
@@ -27,195 +31,215 @@ public class FacilitationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Simplified configuration - works with both InMemory and CosmosDB
+        // Meeting configuration
         modelBuilder.Entity<Meeting>(entity =>
         {
+            entity.ToContainer("Meetings");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.FacilitatorToken).IsRequired().HasMaxLength(50);
             entity.Property(e => e.AttendeeToken).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Title).HasMaxLength(200);
             
-            // Indexes and relationships only for InMemory (not supported in CosmosDB)
-            if (!Database.IsCosmos())
-            {
-                entity.HasIndex(e => e.FacilitatorToken).IsUnique();
-                entity.HasIndex(e => e.AttendeeToken).IsUnique();
-            }
+            // Ignore navigation properties - no longer using owned entities
+            entity.Ignore(m => m.Stages);
+            entity.Ignore(m => m.Notes);
+            entity.Ignore(m => m.Concerns);
+            entity.Ignore(m => m.AttendeeSessions);
+            entity.Ignore(m => m.Questions);
+            entity.Ignore(m => m.Messages);
         });
 
+        // AgendaStage configuration
         modelBuilder.Entity<AgendaStage>(entity =>
         {
+            entity.ToContainer("AgendaStages");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Description).HasMaxLength(500);
             
-            // Relationships only for InMemory (CosmosDB stores flat documents)
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Meeting)
-                    .WithMany(m => m.Stages)
-                    .HasForeignKey(e => e.MeetingId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Index for queries
+            entity.HasIndex(e => e.MeetingId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Meeting);
         });
 
+        // Note configuration
         modelBuilder.Entity<Note>(entity =>
         {
+            entity.ToContainer("Notes");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Content).IsRequired();
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Meeting)
-                    .WithMany(m => m.Notes)
-                    .HasForeignKey(e => e.MeetingId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(e => e.Stage)
-                    .WithMany()
-                    .HasForeignKey(e => e.StageId)
-                    .OnDelete(DeleteBehavior.SetNull);
-            }
+            // Indexes for queries
+            entity.HasIndex(e => e.MeetingId);
+            entity.HasIndex(e => e.SessionId);
+            entity.HasIndex(e => e.StageId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Meeting);
+            entity.Ignore(e => e.Stage);
         });
 
+        // Concern configuration
         modelBuilder.Entity<Concern>(entity =>
         {
+            entity.ToContainer("Concerns");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.ConcernType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.CustomText).HasMaxLength(500);
             entity.Property(e => e.ResponseText).HasMaxLength(500);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Meeting)
-                    .WithMany(m => m.Concerns)
-                    .HasForeignKey(e => e.MeetingId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Indexes for queries
+            entity.HasIndex(e => e.MeetingId);
+            entity.HasIndex(e => e.SessionId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Meeting);
+            entity.Ignore(e => e.Votes);
         });
 
+        // ConcernVote configuration
         modelBuilder.Entity<ConcernVote>(entity =>
         {
+            entity.ToContainer("ConcernVotes");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Concern)
-                    .WithMany(c => c.Votes)
-                    .HasForeignKey(e => e.ConcernId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                entity.HasIndex(e => new { e.ConcernId, e.SessionId }).IsUnique();
-            }
+            // Indexes for queries
+            entity.HasIndex(e => e.ConcernId);
+            entity.HasIndex(e => e.SessionId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Concern);
         });
 
+        // AttendeeSession configuration
         modelBuilder.Entity<AttendeeSession>(entity =>
         {
+            entity.ToContainer("AttendeeSessions");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.DisplayName).HasMaxLength(30);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Meeting)
-                    .WithMany(m => m.AttendeeSessions)
-                    .HasForeignKey(e => e.MeetingId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Indexes for queries
+            entity.HasIndex(e => e.MeetingId);
+            entity.HasIndex(e => e.SessionId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Meeting);
         });
 
+        // Question configuration
         modelBuilder.Entity<Question>(entity =>
         {
+            entity.ToContainer("Questions");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Text).IsRequired().HasMaxLength(300);
             entity.Property(e => e.ScaleMinLabel).HasMaxLength(100);
             entity.Property(e => e.ScaleMaxLabel).HasMaxLength(100);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Meeting)
-                    .WithMany(m => m.Questions)
-                    .HasForeignKey(e => e.MeetingId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(e => e.AssociatedStage)
-                    .WithMany()
-                    .HasForeignKey(e => e.AssociatedStageId)
-                    .OnDelete(DeleteBehavior.SetNull);
-            }
+            // Indexes for queries
+            entity.HasIndex(e => e.MeetingId);
+            entity.HasIndex(e => e.AssociatedStageId);
+            entity.HasIndex(e => e.Status);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Meeting);
+            entity.Ignore(e => e.AssociatedStage);
+            entity.Ignore(e => e.Options);
+            entity.Ignore(e => e.Responses);
         });
 
+        // QuestionOption configuration
         modelBuilder.Entity<QuestionOption>(entity =>
         {
+            entity.ToContainer("QuestionOptions");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OptionText).IsRequired().HasMaxLength(100);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Question)
-                    .WithMany(q => q.Options)
-                    .HasForeignKey(e => e.QuestionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Index for queries
+            entity.HasIndex(e => e.QuestionId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Question);
         });
 
+        // QuestionResponse configuration
         modelBuilder.Entity<QuestionResponse>(entity =>
         {
+            entity.ToContainer("QuestionResponses");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.AttendeeSessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.AnswerText).HasMaxLength(1000);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Question)
-                    .WithMany(q => q.Responses)
-                    .HasForeignKey(e => e.QuestionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Indexes for queries
+            entity.HasIndex(e => e.QuestionId);
+            entity.HasIndex(e => e.AttendeeSessionId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Question);
         });
 
+        // Message configuration
         modelBuilder.Entity<Message>(entity =>
         {
+            entity.ToContainer("Messages");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Text).IsRequired().HasMaxLength(1000);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Meeting)
-                    .WithMany(m => m.Messages)
-                    .HasForeignKey(e => e.MeetingId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Index for queries
+            entity.HasIndex(e => e.MeetingId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Meeting);
+            entity.Ignore(e => e.Options);
+            entity.Ignore(e => e.Responses);
         });
 
+        // MessageOption configuration
         modelBuilder.Entity<MessageOption>(entity =>
         {
+            entity.ToContainer("MessageOptions");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Text).IsRequired().HasMaxLength(100);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Message)
-                    .WithMany(m => m.Options)
-                    .HasForeignKey(e => e.MessageId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Index for queries
+            entity.HasIndex(e => e.MessageId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Message);
         });
 
+        // MessageResponse configuration
         modelBuilder.Entity<MessageResponse>(entity =>
         {
+            entity.ToContainer("MessageResponses");
+            entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Reaction).HasMaxLength(10);
             entity.Property(e => e.FreeText).HasMaxLength(500);
             
-            if (!Database.IsCosmos())
-            {
-                entity.HasOne(e => e.Message)
-                    .WithMany(m => m.Responses)
-                    .HasForeignKey(e => e.MessageId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            }
+            // Indexes for queries
+            entity.HasIndex(e => e.MessageId);
+            entity.HasIndex(e => e.SessionId);
+            
+            // Ignore navigation properties
+            entity.Ignore(e => e.Message);
         });
     }
 }

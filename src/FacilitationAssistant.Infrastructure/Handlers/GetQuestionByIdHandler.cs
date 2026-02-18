@@ -18,8 +18,6 @@ public class GetQuestionByIdHandler : IRequestHandler<GetQuestionByIdQuery, Ques
     public async ValueTask<Question?> Handle(GetQuestionByIdQuery request, CancellationToken cancellationToken)
     {
         return await _context.Questions
-            .Include(q => q.Options)
-            .Include(q => q.Responses)
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
     }
 }

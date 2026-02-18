@@ -22,21 +22,14 @@ public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, 
     {
         try
         {
-            var query = _context.Meetings
-                .Include(m => m.Stages.OrderBy(s => s.OrderIndex))
-                .Include(m => m.Notes)
-                .Include(m => m.Concerns)
-                .Include(m => m.AttendeeSessions)
-                .AsQueryable();
-
             Meeting? meeting;
             if (request.IsFacilitator)
             {
-                meeting = await query.FirstOrDefaultAsync(m => m.FacilitatorToken == request.Token, cancellationToken);
+                meeting = await _context.Meetings.FirstOrDefaultAsync(m => m.FacilitatorToken == request.Token, cancellationToken);
             }
             else
             {
-                meeting = await query.FirstOrDefaultAsync(m => m.AttendeeToken == request.Token, cancellationToken);
+                meeting = await _context.Meetings.FirstOrDefaultAsync(m => m.AttendeeToken == request.Token, cancellationToken);
             }
 
             if (meeting == null)

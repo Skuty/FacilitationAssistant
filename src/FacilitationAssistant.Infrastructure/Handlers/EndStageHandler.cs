@@ -17,8 +17,14 @@ public class EndStageHandler : IRequestHandler<EndStageCommand, Unit>
 
     public async ValueTask<Unit> Handle(EndStageCommand request, CancellationToken cancellationToken)
     {
+        var meeting = await _context.Meetings
+            .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
+
+        if (meeting == null)
+            throw new InvalidOperationException("Meeting not found");
+
         var stage = await _context.AgendaStages
-            .FirstOrDefaultAsync(s => s.Id == request.StageId && s.MeetingId == request.MeetingId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
 
         if (stage == null)
             throw new InvalidOperationException("Stage not found");

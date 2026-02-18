@@ -18,19 +18,26 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
     public async ValueTask<QuestionResultsDto?> Handle(GetQuestionResultsQuery request, CancellationToken cancellationToken)
     {
         var question = await _context.Questions
-            .Include(q => q.Options)
-            .Include(q => q.Responses)
-            .Include(q => q.Meeting)
-                .ThenInclude(m => m.AttendeeSessions)
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
-
+        
         if (question == null)
             return null;
 
-        var totalResponses = question.Responses.Count(r => r.Status == QuestionResponseStatus.Submitted);
-        var totalSkipped = question.Responses.Count(r => r.Status == QuestionResponseStatus.Skipped);
-        var totalAttendees = question.Meeting.AttendeeSessions.Count;
-        var totalPending = Math.Max(0, totalAttendees - totalResponses - totalSkipped);
+        var responses = await _context.QuestionResponses
+            .Where(r => r.QuestionId == request.QuestionId)
+            .ToListAsync(cancellationToken);
+
+        var options = await _context.QuestionOptions
+            .Where(o => o.QuestionId == request.QuestionId)
+            .ToListAsync(cancellationToken);
+
+        var totalResponses = responses.Count(r => r.Status == QuestionResponseStatus.Submitted);
+        var totalSkipped = responses.Count(r => r.Status == QuestionResponseStatus.Skipped);
+        
+        var attendeeCount = await _context.AttendeeSessions
+            .CountAsync(a => a.MeetingId == question.MeetingId, cancellationToken);
+        
+        var totalPending = Math.Max(0, attendeeCount - totalResponses - totalSkipped);
 
         Dictionary<Guid, int>? choiceResults = null;
         List<string>? freeTextAnswers = null;
@@ -40,10 +47,10 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
             question.AnswerType == QuestionAnswerType.MultipleChoice)
         {
             choiceResults = new Dictionary<Guid, int>();
-            foreach (var option in question.Options)
+            foreach (var option in options)
             {
                 var optionIdStr = option.Id.ToString();
-                var count = question.Responses
+                var count = responses
                     .Where(r => r.Status == QuestionResponseStatus.Submitted)
                     .Count(r => r.AnswerChoiceIds.Contains(optionIdStr));
                 choiceResults[option.Id] = count;
@@ -51,14 +58,14 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
         }
         else if (question.AnswerType == QuestionAnswerType.FreeText)
         {
-            freeTextAnswers = question.Responses
+            freeTextAnswers = responses
                 .Where(r => r.Status == QuestionResponseStatus.Submitted && !string.IsNullOrWhiteSpace(r.AnswerText))
                 .Select(r => r.AnswerText!)
                 .ToList();
         }
         else if (question.AnswerType == QuestionAnswerType.Scale)
         {
-            var scaleAnswers = question.Responses
+            var scaleAnswers = responses
                 .Where(r => r.Status == QuestionResponseStatus.Submitted && r.AnswerScaleValue.HasValue)
                 .Select(r => r.AnswerScaleValue!.Value)
                 .ToList();

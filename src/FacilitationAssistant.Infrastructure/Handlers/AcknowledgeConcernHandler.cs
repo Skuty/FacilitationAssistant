@@ -1,6 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -15,11 +16,11 @@ public class AcknowledgeConcernHandler : ICommandHandler<AcknowledgeConcernComma
 
     public async ValueTask<Unit> Handle(AcknowledgeConcernCommand request, CancellationToken cancellationToken)
     {
-        var concern = await _context.Concerns.FindAsync(new object[] { request.ConcernId }, cancellationToken);
+        var concern = await _context.Concerns
+            .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
+            
         if (concern == null)
-        {
             throw new InvalidOperationException("Concern not found");
-        }
 
         concern.IsAcknowledged = true;
         concern.AcknowledgedAt = DateTime.UtcNow;

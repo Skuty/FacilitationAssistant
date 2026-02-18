@@ -20,19 +20,19 @@ public class GetActiveQuestionsForAttendeeHandler : IRequestHandler<GetActiveQue
         // Get all active questions for the meeting
         var activeQuestions = await _context.Questions
             .Where(q => q.MeetingId == request.MeetingId && q.Status == QuestionStatus.Active)
-            .Include(q => q.Options)
             .ToListAsync(cancellationToken);
 
         // Get questions already answered by this attendee
         var answeredQuestionIds = await _context.QuestionResponses
-            .Where(r => r.Question.MeetingId == request.MeetingId && 
-                       r.AttendeeSessionId == request.AttendeeSessionId)
+            .Where(r => r.AttendeeSessionId == request.AttendeeSessionId)
             .Select(r => r.QuestionId)
             .ToListAsync(cancellationToken);
 
+        var answeredSet = answeredQuestionIds.ToHashSet();
+
         // Return only questions not yet answered by this attendee
         return activeQuestions
-            .Where(q => !answeredQuestionIds.Contains(q.Id))
+            .Where(q => !answeredSet.Contains(q.Id))
             .OrderBy(q => q.TriggeredAt)
             .ToList();
     }

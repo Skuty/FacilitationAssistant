@@ -18,7 +18,6 @@ public class GetConcernsByMeetingQueryHandler : IQueryHandler<GetConcernsByMeeti
     public async ValueTask<IReadOnlyList<Concern>> Handle(GetConcernsByMeetingQuery request, CancellationToken cancellationToken)
     {
         var concerns = await _context.Concerns
-            .Include(c => c.Votes)
             .Where(c => c.MeetingId == request.MeetingId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(cancellationToken);

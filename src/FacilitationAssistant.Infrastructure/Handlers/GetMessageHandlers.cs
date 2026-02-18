@@ -19,9 +19,17 @@ public class GetMessagesByMeetingHandler : IRequestHandler<GetMessagesByMeetingQ
     {
         var messages = await _context.Messages
             .Where(m => m.MeetingId == request.MeetingId)
-            .Include(m => m.Responses)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        var messageIds = messages.Select(m => m.Id).ToList();
+        
+        // Get response counts for all messages
+        var responseCounts = await _context.MessageResponses
+            .Where(r => messageIds.Contains(r.MessageId))
+            .GroupBy(r => r.MessageId)
+            .Select(g => new { MessageId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.MessageId, x => x.Count, cancellationToken);
 
         return messages.Select(m => new MessageDto(
             m.Id,
@@ -30,7 +38,7 @@ public class GetMessagesByMeetingHandler : IRequestHandler<GetMessagesByMeetingQ
             m.ResponseType,
             m.CreatedAt,
             m.IsClosed,
-            m.Responses.Count,
+            responseCounts.ContainsKey(m.Id) ? responseCounts[m.Id] : 0,
             null // UserHasResponded is null for this query (no session context)
         )).ToList();
     }
@@ -48,19 +56,25 @@ public class GetMessageByIdHandler : IRequestHandler<GetMessageByIdQuery, Messag
     public async ValueTask<MessageDetailDto?> Handle(GetMessageByIdQuery request, CancellationToken cancellationToken)
     {
         var message = await _context.Messages
-            .Include(m => m.Options)
-            .Include(m => m.Responses)
             .FirstOrDefaultAsync(m => m.Id == request.MessageId, cancellationToken);
 
         if (message == null)
             return null;
 
-        var optionDtos = message.Options
+        var options = await _context.MessageOptions
+            .Where(o => o.MessageId == request.MessageId)
             .OrderBy(o => o.OrderIndex)
+            .ToListAsync(cancellationToken);
+
+        var responses = await _context.MessageResponses
+            .Where(r => r.MessageId == request.MessageId)
+            .ToListAsync(cancellationToken);
+
+        var optionDtos = options
             .Select(o => new MessageOptionDto(o.Id, o.Text, o.OrderIndex))
             .ToList();
 
-        var responseDtos = message.Responses
+        var responseDtos = responses
             .Select(r => new MessageResponseDto(
                 r.Id,
                 r.SessionId,
@@ -139,9 +153,24 @@ public class GetPendingMessagesHandler : IRequestHandler<GetPendingMessagesQuery
     {
         var messages = await _context.Messages
             .Where(m => m.MeetingId == request.MeetingId && !m.IsClosed)
-            .Include(m => m.Responses)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        var messageIds = messages.Select(m => m.Id).ToList();
+        
+        // Get response counts and user responses for all messages
+        var allResponses = await _context.MessageResponses
+            .Where(r => messageIds.Contains(r.MessageId))
+            .ToListAsync(cancellationToken);
+
+        var responseCounts = allResponses
+            .GroupBy(r => r.MessageId)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var userResponses = allResponses
+            .Where(r => r.SessionId == request.SessionId)
+            .Select(r => r.MessageId)
+            .ToHashSet();
 
         return messages.Select(m => new MessageDto(
             m.Id,
@@ -150,8 +179,8 @@ public class GetPendingMessagesHandler : IRequestHandler<GetPendingMessagesQuery
             m.ResponseType,
             m.CreatedAt,
             m.IsClosed,
-            m.Responses.Count,
-            m.Responses.Any(r => r.SessionId == request.SessionId)
+            responseCounts.ContainsKey(m.Id) ? responseCounts[m.Id] : 0,
+            userResponses.Contains(m.Id)
         )).ToList();
     }
 }

@@ -72,7 +72,7 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
         };
 
         _context.Questions.Add(question);
-
+        
         // Add options for choice-based questions
         if (request.Options != null && request.Options.Any())
         {

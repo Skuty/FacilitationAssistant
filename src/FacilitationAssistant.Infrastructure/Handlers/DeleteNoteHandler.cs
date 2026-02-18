@@ -18,7 +18,7 @@ public class DeleteNoteHandler : IRequestHandler<DeleteNoteCommand, bool>
     {
         var note = await _context.Notes
             .FirstOrDefaultAsync(n => n.Id == request.NoteId, cancellationToken);
-
+        
         if (note == null)
             return false;
 

@@ -18,7 +18,6 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
     public async ValueTask<bool> Handle(ReorderAgendaStagesCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
-            .Include(m => m.Stages)
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null || meeting.Status != MeetingStatus.Setup)
@@ -26,7 +25,9 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
             return false;
         }
 
-        var stageToMove = meeting.Stages.FirstOrDefault(s => s.Id == request.StageId);
+        var stageToMove = await _context.AgendaStages
+            .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
+        
         if (stageToMove == null)
         {
             return false;
@@ -35,8 +36,11 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
         var currentIndex = stageToMove.OrderIndex;
         var newIndex = request.NewOrderIndex;
 
+        var stageCount = await _context.AgendaStages
+            .CountAsync(s => s.MeetingId == request.MeetingId, cancellationToken);
+
         // Validate new index is within bounds
-        if (newIndex < 0 || newIndex >= meeting.Stages.Count)
+        if (newIndex < 0 || newIndex >= stageCount)
         {
             return false;
         }
@@ -48,7 +52,10 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
         }
 
         // Reorder stages
-        var sortedStages = meeting.Stages.OrderBy(s => s.OrderIndex).ToList();
+        var sortedStages = await _context.AgendaStages
+            .Where(s => s.MeetingId == request.MeetingId)
+            .OrderBy(s => s.OrderIndex)
+            .ToListAsync(cancellationToken);
         
         // Remove from current position
         sortedStages.RemoveAt(currentIndex);

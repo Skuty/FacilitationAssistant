@@ -29,9 +29,7 @@ public class SubmitQuestionResponseHandler : IRequestHandler<SubmitQuestionRespo
 
         // Check if attendee already answered this question
         var existingResponse = await _context.QuestionResponses
-            .FirstOrDefaultAsync(r => r.QuestionId == request.QuestionId && 
-                                     r.AttendeeSessionId == request.AttendeeSessionId, 
-                                cancellationToken);
+            .FirstOrDefaultAsync(r => r.QuestionId == request.QuestionId && r.AttendeeSessionId == request.AttendeeSessionId, cancellationToken);
 
         if (existingResponse != null)
             throw new InvalidOperationException("You have already answered this question");

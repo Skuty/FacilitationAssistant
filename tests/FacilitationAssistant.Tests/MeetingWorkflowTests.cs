@@ -64,13 +64,16 @@ public class MeetingWorkflowTests
         Assert.NotEqual(Guid.Empty, stageId);
         
         var savedMeeting = await context.Meetings
-            .Include(m => m.Stages)
             .FirstOrDefaultAsync(m => m.Id == meeting.MeetingId);
         
         Assert.NotNull(savedMeeting);
-        Assert.Single(savedMeeting.Stages);
-        Assert.Equal("Introduction", savedMeeting.Stages[0].Name);
-        Assert.Equal(10, savedMeeting.Stages[0].PlannedDurationMinutes);
+        
+        var savedStage = await context.AgendaStages
+            .FirstOrDefaultAsync(s => s.Id == stageId);
+        
+        Assert.NotNull(savedStage);
+        Assert.Equal("Introduction", savedStage.Name);
+        Assert.Equal(10, savedStage.PlannedDurationMinutes);
     }
 
     [Fact]
@@ -118,7 +121,9 @@ public class MeetingWorkflowTests
         // Act - Start first stage
         await startStageHandler.Handle(new StartStageCommand(meeting.MeetingId, stage1Id), CancellationToken.None);
         
-        var afterFirstStart = await context.AgendaStages.FindAsync(stage1Id);
+        var afterFirstStart = await context.AgendaStages
+            .FirstOrDefaultAsync(s => s.Id == stage1Id);
+        
         Assert.NotNull(afterFirstStart);
         Assert.Equal(StageStatus.Active, afterFirstStart.Status);
 
@@ -129,8 +134,10 @@ public class MeetingWorkflowTests
         await startStageHandler.Handle(new StartStageCommand(meeting.MeetingId, stage2Id), CancellationToken.None);
 
         // Assert
-        var stage1 = await context.AgendaStages.FindAsync(stage1Id);
-        var stage2 = await context.AgendaStages.FindAsync(stage2Id);
+        var stage1 = await context.AgendaStages
+            .FirstOrDefaultAsync(s => s.Id == stage1Id);
+        var stage2 = await context.AgendaStages
+            .FirstOrDefaultAsync(s => s.Id == stage2Id);
 
         Assert.NotNull(stage1);
         Assert.NotNull(stage2);
@@ -161,8 +168,13 @@ public class MeetingWorkflowTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(meeting.MeetingId, result.Id);
-        Assert.Single(result.Stages);
-        Assert.Equal("Stage 1", result.Stages[0].Name);
+        
+        var stages = await context.AgendaStages
+            .Where(s => s.MeetingId == result.Id)
+            .ToListAsync();
+        
+        Assert.Single(stages);
+        Assert.Equal("Stage 1", stages[0].Name);
     }
 
     [Fact]
@@ -180,7 +192,9 @@ public class MeetingWorkflowTests
         var noteId = await addNoteHandler.Handle(command, CancellationToken.None);
 
         // Assert
-        var savedNote = await context.Notes.FindAsync(noteId);
+        var savedNote = await context.Notes
+            .FirstOrDefaultAsync(n => n.Id == noteId);
+        
         Assert.NotNull(savedNote);
         Assert.Equal("Test note content", savedNote.Content);
         Assert.True(savedNote.IsPublic);
@@ -202,7 +216,9 @@ public class MeetingWorkflowTests
         var concernId = await raiseConcernHandler.Handle(command, CancellationToken.None);
 
         // Assert
-        var savedConcern = await context.Concerns.FindAsync(concernId);
+        var savedConcern = await context.Concerns
+            .FirstOrDefaultAsync(c => c.Id == concernId);
+        
         Assert.NotNull(savedConcern);
         Assert.Equal("Too Fast", savedConcern.ConcernType);
         Assert.Equal("Moving too quickly", savedConcern.CustomText);
@@ -243,14 +259,18 @@ public class MeetingWorkflowTests
 
         // Assert
         var finalMeeting = await context.Meetings
-            .Include(m => m.Stages)
             .FirstOrDefaultAsync(m => m.Id == meeting.MeetingId);
 
         Assert.NotNull(finalMeeting);
         Assert.Equal(MeetingStatus.Active, finalMeeting.Status);
-        Assert.Equal(2, finalMeeting.Stages.Count);
         
-        var completedStage = finalMeeting.Stages.First(s => s.Id == stage1);
+        var stages = await context.AgendaStages
+            .Where(s => s.MeetingId == meeting.MeetingId)
+            .ToListAsync();
+        
+        Assert.Equal(2, stages.Count);
+        
+        var completedStage = stages.First(s => s.Id == stage1);
         Assert.Equal(StageStatus.Completed, completedStage.Status);
         Assert.NotNull(completedStage.ActualDurationSeconds);
     }

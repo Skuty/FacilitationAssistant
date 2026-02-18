@@ -18,14 +18,15 @@ public class StartStageHandler : IRequestHandler<StartStageCommand, Unit>
     public async ValueTask<Unit> Handle(StartStageCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
-            .Include(m => m.Stages)
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
             throw new InvalidOperationException("Meeting not found");
 
         // End any currently active stage
-        var activeStage = meeting.Stages.FirstOrDefault(s => s.Status == StageStatus.Active);
+        var activeStage = await _context.AgendaStages
+            .FirstOrDefaultAsync(s => s.MeetingId == request.MeetingId && s.Status == StageStatus.Active, cancellationToken);
+        
         if (activeStage != null)
         {
             activeStage.Status = StageStatus.Completed;
@@ -34,7 +35,9 @@ public class StartStageHandler : IRequestHandler<StartStageCommand, Unit>
         }
 
         // Start the new stage
-        var stage = meeting.Stages.FirstOrDefault(s => s.Id == request.StageId);
+        var stage = await _context.AgendaStages
+            .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
+        
         if (stage == null)
             throw new InvalidOperationException("Stage not found");
 

@@ -17,12 +17,11 @@ public class VoteConcernHandler : ICommandHandler<VoteConcernCommand>
 
     public async ValueTask<Unit> Handle(VoteConcernCommand request, CancellationToken cancellationToken)
     {
-        // Check if the concern exists
-        var concern = await _context.Concerns.FindAsync(new object[] { request.ConcernId }, cancellationToken);
+        var concern = await _context.Concerns
+            .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
+            
         if (concern == null)
-        {
             throw new InvalidOperationException("Concern not found");
-        }
 
         // Check if the user has already voted on this concern
         var existingVote = await _context.ConcernVotes

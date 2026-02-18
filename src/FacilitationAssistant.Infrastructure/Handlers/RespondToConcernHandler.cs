@@ -1,6 +1,7 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -16,11 +17,11 @@ public class RespondToConcernHandler : ICommandHandler<RespondToConcernCommand>
 
     public async ValueTask<Unit> Handle(RespondToConcernCommand request, CancellationToken cancellationToken)
     {
-        var concern = await _context.Concerns.FindAsync(new object[] { request.ConcernId }, cancellationToken);
+        var concern = await _context.Concerns
+            .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
+            
         if (concern == null)
-        {
             throw new InvalidOperationException("Concern not found");
-        }
 
         concern.ResponseText = string.IsNullOrWhiteSpace(request.ResponseText) ? null : HtmlEncoder.Default.Encode(request.ResponseText);
         concern.RespondedAt = DateTime.UtcNow;

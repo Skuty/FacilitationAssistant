@@ -19,8 +19,6 @@ public class GetQuestionsByMeetingHandler : IRequestHandler<GetQuestionsByMeetin
     {
         return await _context.Questions
             .Where(q => q.MeetingId == request.MeetingId)
-            .Include(q => q.Options)
-            .Include(q => q.Responses)
             .OrderBy(q => q.CreatedAt)
             .ToListAsync(cancellationToken);
     }

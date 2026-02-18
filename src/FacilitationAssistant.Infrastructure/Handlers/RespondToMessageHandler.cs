@@ -19,7 +19,6 @@ public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, 
     public async ValueTask<Guid> Handle(RespondToMessageCommand request, CancellationToken cancellationToken)
     {
         var message = await _context.Messages
-            .Include(m => m.Responses)
             .FirstOrDefaultAsync(m => m.Id == request.MessageId, cancellationToken);
 
         if (message == null)
@@ -29,8 +28,8 @@ public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, 
             throw new InvalidOperationException("Message is closed and no longer accepting responses");
 
         // Check if user has already responded
-        var existingResponse = message.Responses
-            .FirstOrDefault(r => r.SessionId == request.SessionId);
+        var existingResponse = await _context.MessageResponses
+            .FirstOrDefaultAsync(r => r.MessageId == request.MessageId && r.SessionId == request.SessionId, cancellationToken);
 
         if (existingResponse != null)
         {

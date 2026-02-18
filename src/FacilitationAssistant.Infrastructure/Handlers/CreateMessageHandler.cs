@@ -54,19 +54,20 @@ public class CreateMessageHandler : IRequestHandler<CreateMessageCommand, Guid>
         };
 
         _context.Messages.Add(message);
-
+        
         // Add options for predefined answers
         if (request.PredefinedOptions != null && request.PredefinedOptions.Any())
         {
             for (int i = 0; i < request.PredefinedOptions.Count; i++)
             {
-                message.Options.Add(new MessageOption
+                var option = new MessageOption
                 {
                     Id = Guid.NewGuid(),
                     MessageId = message.Id,
                     Text = HtmlEncoder.Default.Encode(request.PredefinedOptions[i]),
                     OrderIndex = i
-                });
+                };
+                _context.MessageOptions.Add(option);
             }
         }
 

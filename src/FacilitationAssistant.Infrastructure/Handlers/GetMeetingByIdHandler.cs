@@ -18,10 +18,6 @@ public class GetMeetingByIdHandler : IRequestHandler<GetMeetingByIdQuery, Meetin
     public async ValueTask<Meeting?> Handle(GetMeetingByIdQuery request, CancellationToken cancellationToken)
     {
         return await _context.Meetings
-            .Include(m => m.Stages.OrderBy(s => s.OrderIndex))
-            .Include(m => m.Notes)
-            .Include(m => m.Concerns)
-            .Include(m => m.AttendeeSessions)
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
     }
 }

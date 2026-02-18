@@ -18,7 +18,6 @@ public class EndMeetingHandler : IRequestHandler<EndMeetingCommand, Unit>
     public async ValueTask<Unit> Handle(EndMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
-            .Include(m => m.Stages)
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
@@ -28,7 +27,9 @@ public class EndMeetingHandler : IRequestHandler<EndMeetingCommand, Unit>
             return Unit.Value; // Already ended
 
         // End any active stage
-        var activeStage = meeting.Stages.FirstOrDefault(s => s.Status == StageStatus.Active);
+        var activeStage = await _context.AgendaStages
+            .FirstOrDefaultAsync(s => s.MeetingId == request.MeetingId && s.Status == StageStatus.Active, cancellationToken);
+        
         if (activeStage != null)
         {
             activeStage.Status = StageStatus.Completed;

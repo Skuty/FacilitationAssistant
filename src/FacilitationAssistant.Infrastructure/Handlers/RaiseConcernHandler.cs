@@ -18,6 +18,12 @@ public class RaiseConcernHandler : IRequestHandler<RaiseConcernCommand, Guid>
 
     public async ValueTask<Guid> Handle(RaiseConcernCommand request, CancellationToken cancellationToken)
     {
+        var meeting = await _context.Meetings
+            .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
+
+        if (meeting == null)
+            throw new InvalidOperationException("Meeting not found");
+
         // Check resource limit: max 50 concerns per meeting
         var concernCount = await _context.Concerns
             .CountAsync(c => c.MeetingId == request.MeetingId, cancellationToken);
