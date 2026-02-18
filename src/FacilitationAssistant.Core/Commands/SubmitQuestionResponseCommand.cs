@@ -6,7 +6,7 @@ namespace FacilitationAssistant.Core.Commands;
 public record SubmitQuestionResponseCommand(
     Guid QuestionId,
     string AttendeeSessionId,
-    List<Guid>? AnswerChoiceIds,
+    List<string>? AnswerChoiceIds,
     string? AnswerText,
     int? AnswerScaleValue,
     QuestionResponseStatus Status

@@ -41,7 +41,7 @@ public class SubmitQuestionResponseHandler : IRequestHandler<SubmitQuestionRespo
             Id = Guid.NewGuid(),
             QuestionId = request.QuestionId,
             AttendeeSessionId = request.AttendeeSessionId,
-            AnswerChoiceIds = request.AnswerChoiceIds ?? new List<Guid>(),
+            AnswerChoiceIds = request.AnswerChoiceIds ?? new List<string>(),
             AnswerText = string.IsNullOrWhiteSpace(request.AnswerText) ? null : HtmlEncoder.Default.Encode(request.AnswerText),
             AnswerScaleValue = request.AnswerScaleValue,
             Status = request.Status,

@@ -861,7 +861,7 @@ else
 
         try
         {
-            List<Guid>? answerChoiceIds = null;
+            List<string>? answerChoiceIds = null;
             string? answerText = null;
             int? answerScaleValue = null;
 
@@ -869,11 +869,11 @@ else
             {
                 case QuestionAnswerType.SingleChoice:
                     answerChoiceIds = selectedSingleChoice.HasValue 
-                        ? new List<Guid> { selectedSingleChoice.Value } 
+                        ? new List<string> { selectedSingleChoice.Value.ToString() } 
                         : null;
                     break;
                 case QuestionAnswerType.MultipleChoice:
-                    answerChoiceIds = selectedMultipleChoices.ToList();
+                    answerChoiceIds = selectedMultipleChoices.Select(id => id.ToString()).ToList();
                     break;
                 case QuestionAnswerType.FreeText:
                     answerText = freeTextAnswer;

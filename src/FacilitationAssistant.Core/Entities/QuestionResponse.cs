@@ -11,7 +11,7 @@ public class QuestionResponse
     public QuestionResponseStatus Status { get; set; } = QuestionResponseStatus.Submitted;
     
     // Different answer types
-    public List<Guid> AnswerChoiceIds { get; set; } = new();
+    public List<string> AnswerChoiceIds { get; set; } = new();
     public string? AnswerText { get; set; }
     public int? AnswerScaleValue { get; set; }
 }

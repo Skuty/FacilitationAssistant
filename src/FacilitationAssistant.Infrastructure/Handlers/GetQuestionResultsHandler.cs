@@ -42,9 +42,10 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
             choiceResults = new Dictionary<Guid, int>();
             foreach (var option in question.Options)
             {
+                var optionIdStr = option.Id.ToString();
                 var count = question.Responses
                     .Where(r => r.Status == QuestionResponseStatus.Submitted)
-                    .Count(r => r.AnswerChoiceIds.Contains(option.Id));
+                    .Count(r => r.AnswerChoiceIds.Contains(optionIdStr));
                 choiceResults[option.Id] = count;
             }
         }
