@@ -6,35 +6,40 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Retrieves aggregated results for a question
+/// </summary>
 public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery, QuestionResultsDto?>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetQuestionResultsHandler(FacilitationDbContext context)
+    public GetQuestionResultsHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<QuestionResultsDto?> Handle(GetQuestionResultsQuery request, CancellationToken cancellationToken)
     {
-        var question = await _context.Questions
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var question = await context.Questions
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
         
         if (question == null)
             return null;
 
-        var responses = await _context.QuestionResponses
+        var responses = await context.QuestionResponses
             .Where(r => r.QuestionId == request.QuestionId)
             .ToListAsync(cancellationToken);
 
-        var options = await _context.QuestionOptions
+        var options = await context.QuestionOptions
             .Where(o => o.QuestionId == request.QuestionId)
             .ToListAsync(cancellationToken);
 
         var totalResponses = responses.Count(r => r.Status == QuestionResponseStatus.Submitted);
         var totalSkipped = responses.Count(r => r.Status == QuestionResponseStatus.Skipped);
         
-        var attendeeCount = await _context.AttendeeSessions
+        var attendeeCount = await context.AttendeeSessions
             .CountAsync(a => a.MeetingId == question.MeetingId, cancellationToken);
         
         var totalPending = Math.Max(0, attendeeCount - totalResponses - totalSkipped);

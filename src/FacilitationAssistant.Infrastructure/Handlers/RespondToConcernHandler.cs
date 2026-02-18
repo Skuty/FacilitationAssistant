@@ -6,18 +6,23 @@ using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles responding to a raised concern.
+/// </summary>
 public class RespondToConcernHandler : ICommandHandler<RespondToConcernCommand>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public RespondToConcernHandler(FacilitationDbContext context)
+    public RespondToConcernHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Unit> Handle(RespondToConcernCommand request, CancellationToken cancellationToken)
     {
-        var concern = await _context.Concerns
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var concern = await context.Concerns
             .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
             
         if (concern == null)
@@ -33,7 +38,7 @@ public class RespondToConcernHandler : ICommandHandler<RespondToConcernCommand>
             concern.AcknowledgedAt = DateTime.UtcNow;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
         return Unit.Value;
     }
 }

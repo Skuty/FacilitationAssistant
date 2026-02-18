@@ -1,30 +1,39 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles voting on a concern (upvote or downvote).
+/// </summary>
 public class VoteConcernHandler : ICommandHandler<VoteConcernCommand>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public VoteConcernHandler(FacilitationDbContext context)
+    public VoteConcernHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
-        _context = context;
+        _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Unit> Handle(VoteConcernCommand request, CancellationToken cancellationToken)
     {
-        var concern = await _context.Concerns
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var concern = await context.Concerns
             .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
             
         if (concern == null)
             throw new InvalidOperationException("Concern not found");
 
         // Check if the user has already voted on this concern
-        var existingVote = await _context.ConcernVotes
+        var existingVote = await context.ConcernVotes
             .FirstOrDefaultAsync(v => v.ConcernId == request.ConcernId && v.SessionId == request.SessionId, cancellationToken);
 
         if (existingVote != null)
@@ -32,7 +41,7 @@ public class VoteConcernHandler : ICommandHandler<VoteConcernCommand>
             // If same vote type, remove the vote (toggle off)
             if (existingVote.VoteType == request.VoteType)
             {
-                _context.ConcernVotes.Remove(existingVote);
+                context.ConcernVotes.Remove(existingVote);
             }
             else
             {
@@ -52,10 +61,15 @@ public class VoteConcernHandler : ICommandHandler<VoteConcernCommand>
                 VoteType = request.VoteType,
                 VotedAt = DateTime.UtcNow
             };
-            _context.ConcernVotes.Add(vote);
+            context.ConcernVotes.Add(vote);
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients
+        await _hubContext.Clients.Group(concern.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "concern_voted", cancellationToken);
+        
         return Unit.Value;
     }
 }

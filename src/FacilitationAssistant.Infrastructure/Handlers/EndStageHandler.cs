@@ -1,29 +1,38 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles ending an active agenda stage.
+/// </summary>
 public class EndStageHandler : IRequestHandler<EndStageCommand, Unit>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public EndStageHandler(FacilitationDbContext context)
+    public EndStageHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
-        _context = context;
+        _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Unit> Handle(EndStageCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
             throw new InvalidOperationException("Meeting not found");
 
-        var stage = await _context.AgendaStages
+        var stage = await context.AgendaStages
             .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
 
         if (stage == null)
@@ -36,7 +45,11 @@ public class EndStageHandler : IRequestHandler<EndStageCommand, Unit>
         stage.CompletedAt = DateTime.UtcNow;
         stage.ActualDurationSeconds = (int)(DateTime.UtcNow - stage.StartedAt!.Value).TotalSeconds;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients
+        await _hubContext.Clients.Group(request.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "stage_ended", cancellationToken);
 
         return Unit.Value;
     }

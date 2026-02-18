@@ -5,18 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles regenerating the facilitator token for a meeting.
+/// </summary>
 public class RegenerateFacilitatorTokenHandler : IRequestHandler<RegenerateFacilitatorTokenCommand, string>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public RegenerateFacilitatorTokenHandler(FacilitationDbContext context)
+    public RegenerateFacilitatorTokenHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<string> Handle(RegenerateFacilitatorTokenCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.FacilitatorToken == request.CurrentFacilitatorToken, cancellationToken);
 
         if (meeting == null)
@@ -29,7 +34,7 @@ public class RegenerateFacilitatorTokenHandler : IRequestHandler<RegenerateFacil
 
         // Update the facilitator token
         meeting.FacilitatorToken = newToken;
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         return newToken;
     }

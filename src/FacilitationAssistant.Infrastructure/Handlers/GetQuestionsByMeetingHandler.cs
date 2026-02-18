@@ -6,18 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Retrieves all questions for a meeting
+/// </summary>
 public class GetQuestionsByMeetingHandler : IRequestHandler<GetQuestionsByMeetingQuery, List<Question>>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetQuestionsByMeetingHandler(FacilitationDbContext context)
+    public GetQuestionsByMeetingHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<List<Question>> Handle(GetQuestionsByMeetingQuery request, CancellationToken cancellationToken)
     {
-        return await _context.Questions
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        return await context.Questions
             .Where(q => q.MeetingId == request.MeetingId)
             .OrderBy(q => q.CreatedAt)
             .ToListAsync(cancellationToken);

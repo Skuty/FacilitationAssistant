@@ -7,18 +7,23 @@ using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles creating a new question for a meeting.
+/// </summary>
 public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public CreateQuestionHandler(FacilitationDbContext context)
+    public CreateQuestionHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Guid> Handle(CreateQuestionCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
@@ -71,7 +76,7 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
             TriggeredAt = request.TriggerImmediately ? DateTime.UtcNow : null
         };
 
-        _context.Questions.Add(question);
+        context.Questions.Add(question);
         
         // Add options for choice-based questions
         if (request.Options != null && request.Options.Any())
@@ -85,11 +90,11 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
                     OptionText = HtmlEncoder.Default.Encode(request.Options[i]),
                     OrderIndex = i
                 };
-                _context.QuestionOptions.Add(option);
+                context.QuestionOptions.Add(option);
             }
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         return question.Id;
     }

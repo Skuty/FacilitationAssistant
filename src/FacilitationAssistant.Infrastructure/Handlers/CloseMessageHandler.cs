@@ -5,18 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles closing a message to prevent further responses.
+/// </summary>
 public class CloseMessageHandler : IRequestHandler<CloseMessageCommand, Unit>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public CloseMessageHandler(FacilitationDbContext context)
+    public CloseMessageHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Unit> Handle(CloseMessageCommand request, CancellationToken cancellationToken)
     {
-        var message = await _context.Messages
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var message = await context.Messages
             .FirstOrDefaultAsync(m => m.Id == request.MessageId, cancellationToken);
 
         if (message == null)
@@ -25,7 +30,7 @@ public class CloseMessageHandler : IRequestHandler<CloseMessageCommand, Unit>
         message.IsClosed = true;
         message.ClosedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
         return Unit.Value;
     }
 }

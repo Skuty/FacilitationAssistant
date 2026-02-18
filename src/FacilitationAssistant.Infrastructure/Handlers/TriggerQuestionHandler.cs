@@ -1,23 +1,32 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles triggering a question to make it active for attendees.
+/// </summary>
 public class TriggerQuestionHandler : IRequestHandler<TriggerQuestionCommand, bool>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public TriggerQuestionHandler(FacilitationDbContext context)
+    public TriggerQuestionHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
-        _context = context;
+        _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<bool> Handle(TriggerQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = await _context.Questions
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var question = await context.Questions
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
         if (question == null)
@@ -29,7 +38,11 @@ public class TriggerQuestionHandler : IRequestHandler<TriggerQuestionCommand, bo
         question.Status = QuestionStatus.Active;
         question.TriggeredAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients
+        await _hubContext.Clients.Group(question.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "question_triggered", cancellationToken);
 
         return true;
     }

@@ -6,18 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles retrieving a meeting by its ID.
+/// </summary>
 public class GetMeetingByIdHandler : IRequestHandler<GetMeetingByIdQuery, Meeting?>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetMeetingByIdHandler(FacilitationDbContext context)
+    public GetMeetingByIdHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Meeting?> Handle(GetMeetingByIdQuery request, CancellationToken cancellationToken)
     {
-        return await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        return await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
     }
 }

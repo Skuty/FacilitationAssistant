@@ -6,18 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Retrieves all concerns for a meeting
+/// </summary>
 public class GetConcernsByMeetingQueryHandler : IQueryHandler<GetConcernsByMeetingQuery, IReadOnlyList<Concern>>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetConcernsByMeetingQueryHandler(FacilitationDbContext context)
+    public GetConcernsByMeetingQueryHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<IReadOnlyList<Concern>> Handle(GetConcernsByMeetingQuery request, CancellationToken cancellationToken)
     {
-        var concerns = await _context.Concerns
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var concerns = await context.Concerns
             .Where(c => c.MeetingId == request.MeetingId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(cancellationToken);

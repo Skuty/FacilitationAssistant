@@ -5,18 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles withdrawing a concern that was previously raised.
+/// </summary>
 public class WithdrawConcernHandler : ICommandHandler<WithdrawConcernCommand>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public WithdrawConcernHandler(FacilitationDbContext context)
+    public WithdrawConcernHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Unit> Handle(WithdrawConcernCommand request, CancellationToken cancellationToken)
     {
-        var concern = await _context.Concerns
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var concern = await context.Concerns
             .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
             
         if (concern == null)
@@ -31,7 +36,7 @@ public class WithdrawConcernHandler : ICommandHandler<WithdrawConcernCommand>
         concern.IsWithdrawn = true;
         concern.WithdrawnAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
         return Unit.Value;
     }
 }

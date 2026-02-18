@@ -2,24 +2,32 @@ using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Creates a new meeting with facilitator and attendee tokens
+/// </summary>
 public class CreateMeetingHandler : IRequestHandler<CreateMeetingCommand, CreateMeetingResult>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
     private readonly ILogger<CreateMeetingHandler> _logger;
 
-    public CreateMeetingHandler(FacilitationDbContext context, ILogger<CreateMeetingHandler> logger)
+    public CreateMeetingHandler(
+        IDbContextFactory<FacilitationDbContext> contextFactory, 
+        ILogger<CreateMeetingHandler> logger)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _logger = logger;
     }
 
     public async ValueTask<CreateMeetingResult> Handle(CreateMeetingCommand request, CancellationToken cancellationToken)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
         try
         {
             var facilitatorToken = GenerateToken();
@@ -35,8 +43,8 @@ public class CreateMeetingHandler : IRequestHandler<CreateMeetingCommand, Create
                 Status = MeetingStatus.Setup
             };
 
-            _context.Meetings.Add(meeting);
-            await _context.SaveChangesAsync(cancellationToken);
+            context.Meetings.Add(meeting);
+            await context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Meeting {MeetingId} created with title: {Title}", meeting.Id, meeting.Title);
 

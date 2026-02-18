@@ -1,30 +1,39 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles starting an agenda stage.
+/// </summary>
 public class StartStageHandler : IRequestHandler<StartStageCommand, Unit>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public StartStageHandler(FacilitationDbContext context)
+    public StartStageHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
-        _context = context;
+        _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Unit> Handle(StartStageCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
             throw new InvalidOperationException("Meeting not found");
 
         // End any currently active stage
-        var activeStage = await _context.AgendaStages
+        var activeStage = await context.AgendaStages
             .FirstOrDefaultAsync(s => s.MeetingId == request.MeetingId && s.Status == StageStatus.Active, cancellationToken);
         
         if (activeStage != null)
@@ -35,7 +44,7 @@ public class StartStageHandler : IRequestHandler<StartStageCommand, Unit>
         }
 
         // Start the new stage
-        var stage = await _context.AgendaStages
+        var stage = await context.AgendaStages
             .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
         
         if (stage == null)
@@ -44,7 +53,11 @@ public class StartStageHandler : IRequestHandler<StartStageCommand, Unit>
         stage.Status = StageStatus.Active;
         stage.StartedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients
+        await _hubContext.Clients.Group(request.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "stage_started", cancellationToken);
 
         return Unit.Value;
     }

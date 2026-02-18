@@ -5,18 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles deleting a note from a meeting.
+/// </summary>
 public class DeleteNoteHandler : IRequestHandler<DeleteNoteCommand, bool>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public DeleteNoteHandler(FacilitationDbContext context)
+    public DeleteNoteHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<bool> Handle(DeleteNoteCommand request, CancellationToken cancellationToken)
     {
-        var note = await _context.Notes
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var note = await context.Notes
             .FirstOrDefaultAsync(n => n.Id == request.NoteId, cancellationToken);
         
         if (note == null)
@@ -26,8 +31,8 @@ public class DeleteNoteHandler : IRequestHandler<DeleteNoteCommand, bool>
         if (note.SessionId != request.SessionId)
             return false;
 
-        _context.Notes.Remove(note);
-        await _context.SaveChangesAsync(cancellationToken);
+        context.Notes.Remove(note);
+        await context.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

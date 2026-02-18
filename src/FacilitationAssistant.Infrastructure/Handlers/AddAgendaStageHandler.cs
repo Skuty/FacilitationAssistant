@@ -7,18 +7,23 @@ using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Adds a new agenda stage to a meeting
+/// </summary>
 public class AddAgendaStageHandler : IRequestHandler<AddAgendaStageCommand, Guid>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public AddAgendaStageHandler(FacilitationDbContext context)
+    public AddAgendaStageHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Guid> Handle(AddAgendaStageCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
@@ -38,8 +43,8 @@ public class AddAgendaStageHandler : IRequestHandler<AddAgendaStageCommand, Guid
             Status = StageStatus.NotStarted
         };
 
-        _context.AgendaStages.Add(stage);
-        await _context.SaveChangesAsync(cancellationToken);
+        context.AgendaStages.Add(stage);
+        await context.SaveChangesAsync(cancellationToken);
 
         return stage.Id;
     }

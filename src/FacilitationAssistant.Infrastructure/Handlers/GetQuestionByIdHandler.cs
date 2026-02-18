@@ -6,18 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles retrieving a question by its ID.
+/// </summary>
 public class GetQuestionByIdHandler : IRequestHandler<GetQuestionByIdQuery, Question?>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetQuestionByIdHandler(FacilitationDbContext context)
+    public GetQuestionByIdHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Question?> Handle(GetQuestionByIdQuery request, CancellationToken cancellationToken)
     {
-        return await _context.Questions
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        return await context.Questions
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
     }
 }

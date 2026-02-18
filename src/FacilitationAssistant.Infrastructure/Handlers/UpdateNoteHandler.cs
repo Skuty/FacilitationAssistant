@@ -6,18 +6,23 @@ using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles updating an existing note.
+/// </summary>
 public class UpdateNoteHandler : IRequestHandler<UpdateNoteCommand, bool>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public UpdateNoteHandler(FacilitationDbContext context)
+    public UpdateNoteHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<bool> Handle(UpdateNoteCommand request, CancellationToken cancellationToken)
     {
-        var note = await _context.Notes
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var note = await context.Notes
             .FirstOrDefaultAsync(n => n.Id == request.NoteId, cancellationToken);
 
         if (note == null)
@@ -41,7 +46,7 @@ public class UpdateNoteHandler : IRequestHandler<UpdateNoteCommand, bool>
             note.UpdatedAt = DateTime.UtcNow;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

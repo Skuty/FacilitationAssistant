@@ -6,24 +6,29 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles deleting an agenda stage from a meeting.
+/// </summary>
 public class DeleteAgendaStageHandler : IRequestHandler<DeleteAgendaStageCommand, Unit>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public DeleteAgendaStageHandler(FacilitationDbContext context)
+    public DeleteAgendaStageHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Unit> Handle(DeleteAgendaStageCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
             throw new InvalidOperationException("Meeting not found");
 
-        var stage = await _context.AgendaStages
+        var stage = await context.AgendaStages
             .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
         
         if (stage == null)
@@ -33,10 +38,10 @@ public class DeleteAgendaStageHandler : IRequestHandler<DeleteAgendaStageCommand
         if (stage.Status != StageStatus.NotStarted)
             throw new InvalidOperationException("Cannot delete a stage that has already started or been completed");
 
-        _context.AgendaStages.Remove(stage);
+        context.AgendaStages.Remove(stage);
         
         // Reorder remaining stages to close the gap
-        var remainingStages = await _context.AgendaStages
+        var remainingStages = await context.AgendaStages
             .Where(s => s.MeetingId == request.MeetingId && s.OrderIndex > stage.OrderIndex)
             .OrderBy(s => s.OrderIndex)
             .ToListAsync(cancellationToken);
@@ -46,7 +51,7 @@ public class DeleteAgendaStageHandler : IRequestHandler<DeleteAgendaStageCommand
             remainingStage.OrderIndex--;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         return Unit.Value;
     }

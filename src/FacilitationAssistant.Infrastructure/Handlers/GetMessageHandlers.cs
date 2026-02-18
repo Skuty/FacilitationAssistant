@@ -6,18 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles retrieving all messages for a meeting.
+/// </summary>
 public class GetMessagesByMeetingHandler : IRequestHandler<GetMessagesByMeetingQuery, List<MessageDto>>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetMessagesByMeetingHandler(FacilitationDbContext context)
+    public GetMessagesByMeetingHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<List<MessageDto>> Handle(GetMessagesByMeetingQuery request, CancellationToken cancellationToken)
     {
-        var messages = await _context.Messages
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var messages = await context.Messages
             .Where(m => m.MeetingId == request.MeetingId)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -25,7 +30,7 @@ public class GetMessagesByMeetingHandler : IRequestHandler<GetMessagesByMeetingQ
         var messageIds = messages.Select(m => m.Id).ToList();
         
         // Get response counts for all messages
-        var responseCounts = await _context.MessageResponses
+        var responseCounts = await context.MessageResponses
             .Where(r => messageIds.Contains(r.MessageId))
             .GroupBy(r => r.MessageId)
             .Select(g => new { MessageId = g.Key, Count = g.Count() })
@@ -44,29 +49,34 @@ public class GetMessagesByMeetingHandler : IRequestHandler<GetMessagesByMeetingQ
     }
 }
 
+/// <summary>
+/// Handles retrieving detailed information about a specific message.
+/// </summary>
 public class GetMessageByIdHandler : IRequestHandler<GetMessageByIdQuery, MessageDetailDto?>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetMessageByIdHandler(FacilitationDbContext context)
+    public GetMessageByIdHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<MessageDetailDto?> Handle(GetMessageByIdQuery request, CancellationToken cancellationToken)
     {
-        var message = await _context.Messages
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var message = await context.Messages
             .FirstOrDefaultAsync(m => m.Id == request.MessageId, cancellationToken);
 
         if (message == null)
             return null;
 
-        var options = await _context.MessageOptions
+        var options = await context.MessageOptions
             .Where(o => o.MessageId == request.MessageId)
             .OrderBy(o => o.OrderIndex)
             .ToListAsync(cancellationToken);
 
-        var responses = await _context.MessageResponses
+        var responses = await context.MessageResponses
             .Where(r => r.MessageId == request.MessageId)
             .ToListAsync(cancellationToken);
 
@@ -140,18 +150,23 @@ public class GetMessageByIdHandler : IRequestHandler<GetMessageByIdQuery, Messag
     }
 }
 
+/// <summary>
+/// Handles retrieving pending (not closed) messages for a meeting and session.
+/// </summary>
 public class GetPendingMessagesHandler : IRequestHandler<GetPendingMessagesQuery, List<MessageDto>>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetPendingMessagesHandler(FacilitationDbContext context)
+    public GetPendingMessagesHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<List<MessageDto>> Handle(GetPendingMessagesQuery request, CancellationToken cancellationToken)
     {
-        var messages = await _context.Messages
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var messages = await context.Messages
             .Where(m => m.MeetingId == request.MeetingId && !m.IsClosed)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -159,7 +174,7 @@ public class GetPendingMessagesHandler : IRequestHandler<GetPendingMessagesQuery
         var messageIds = messages.Select(m => m.Id).ToList();
         
         // Get response counts and user responses for all messages
-        var allResponses = await _context.MessageResponses
+        var allResponses = await context.MessageResponses
             .Where(r => messageIds.Contains(r.MessageId))
             .ToListAsync(cancellationToken);
 

@@ -1,6 +1,6 @@
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using FacilitationAssistant.Web.Components;
-using FacilitationAssistant.Web.Hubs;
 using FacilitationAssistant.Web.Middleware;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
@@ -49,8 +49,8 @@ if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
     // CosmosDB - Azure production environment
     var databaseName = builder.Configuration.GetValue<string>("Database:ConnectionStrings:CosmosDB:DatabaseName") ?? "FacilitationAssistant";
     
-    builder.Services.AddDbContext<FacilitationDbContext>(options =>
-        options.UseCosmos(cosmosEndpoint, cosmosKey, databaseName), ServiceLifetime.Scoped);
+    builder.Services.AddDbContextFactory<FacilitationDbContext>(options =>
+        options.UseCosmos(cosmosEndpoint, cosmosKey, databaseName));
     
     Console.WriteLine($"Using CosmosDB: {databaseName}");
 }
@@ -61,8 +61,8 @@ else
         ?? builder.Configuration.GetValue<string>("Database:ConnectionStrings:InMemory") 
         ?? "FacilitationDb";
     
-    builder.Services.AddDbContext<FacilitationDbContext>(options =>
-        options.UseInMemoryDatabase(databaseName), ServiceLifetime.Singleton);
+    builder.Services.AddDbContextFactory<FacilitationDbContext>(options =>
+        options.UseInMemoryDatabase(databaseName));
     
     Console.WriteLine($"Using InMemory Database: {databaseName}");
 }
@@ -106,8 +106,8 @@ if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
 {
     try
     {
-        using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<FacilitationDbContext>();
+        var contextFactory = app.Services.GetRequiredService<IDbContextFactory<FacilitationDbContext>>();
+        await using var context = await contextFactory.CreateDbContextAsync();
         await context.Database.EnsureCreatedAsync();
         logger.LogInformation("Database initialized successfully");
     }

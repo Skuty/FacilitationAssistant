@@ -1,31 +1,40 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles adding a new note to a meeting.
+/// </summary>
 public class AddNoteHandler : IRequestHandler<AddNoteCommand, Guid>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public AddNoteHandler(FacilitationDbContext context)
+    public AddNoteHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
-        _context = context;
+        _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Guid> Handle(AddNoteCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
             throw new InvalidOperationException("Meeting not found");
 
         // Check resource limit: max 100 notes per meeting
-        var noteCount = await _context.Notes
+        var noteCount = await context.Notes
             .CountAsync(n => n.MeetingId == request.MeetingId, cancellationToken);
         
         if (noteCount >= 100)
@@ -42,8 +51,12 @@ public class AddNoteHandler : IRequestHandler<AddNoteCommand, Guid>
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Notes.Add(note);
-        await _context.SaveChangesAsync(cancellationToken);
+        context.Notes.Add(note);
+        await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients
+        await _hubContext.Clients.Group(request.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "note_added", cancellationToken);
 
         return note.Id;
     }

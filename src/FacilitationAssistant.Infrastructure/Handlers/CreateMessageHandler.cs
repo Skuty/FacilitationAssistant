@@ -1,24 +1,33 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles creating a new message for attendees during a meeting.
+/// </summary>
 public class CreateMessageHandler : IRequestHandler<CreateMessageCommand, Guid>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public CreateMessageHandler(FacilitationDbContext context)
+    public CreateMessageHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
-        _context = context;
+        _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Guid> Handle(CreateMessageCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
@@ -53,7 +62,7 @@ public class CreateMessageHandler : IRequestHandler<CreateMessageCommand, Guid>
             IsClosed = false
         };
 
-        _context.Messages.Add(message);
+        context.Messages.Add(message);
         
         // Add options for predefined answers
         if (request.PredefinedOptions != null && request.PredefinedOptions.Any())
@@ -67,11 +76,16 @@ public class CreateMessageHandler : IRequestHandler<CreateMessageCommand, Guid>
                     Text = HtmlEncoder.Default.Encode(request.PredefinedOptions[i]),
                     OrderIndex = i
                 };
-                _context.MessageOptions.Add(option);
+                context.MessageOptions.Add(option);
             }
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients
+        await _hubContext.Clients.Group(request.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "message_sent", cancellationToken);
+        
         return message.Id;
     }
 }

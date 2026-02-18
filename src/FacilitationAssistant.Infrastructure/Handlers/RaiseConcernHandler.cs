@@ -1,31 +1,40 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles raising a new concern during a meeting.
+/// </summary>
 public class RaiseConcernHandler : IRequestHandler<RaiseConcernCommand, Guid>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public RaiseConcernHandler(FacilitationDbContext context)
+    public RaiseConcernHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
-        _context = context;
+        _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Guid> Handle(RaiseConcernCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null)
             throw new InvalidOperationException("Meeting not found");
 
         // Check resource limit: max 50 concerns per meeting
-        var concernCount = await _context.Concerns
+        var concernCount = await context.Concerns
             .CountAsync(c => c.MeetingId == request.MeetingId, cancellationToken);
         
         if (concernCount >= 50)
@@ -44,8 +53,12 @@ public class RaiseConcernHandler : IRequestHandler<RaiseConcernCommand, Guid>
             IsWithdrawn = false
         };
 
-        _context.Concerns.Add(concern);
-        await _context.SaveChangesAsync(cancellationToken);
+        context.Concerns.Add(concern);
+        await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients
+        await _hubContext.Clients.Group(request.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "concern_raised", cancellationToken);
 
         return concern.Id;
     }

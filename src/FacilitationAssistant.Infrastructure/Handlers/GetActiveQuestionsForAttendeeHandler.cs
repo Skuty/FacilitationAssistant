@@ -6,24 +6,29 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles retrieving active questions that an attendee hasn't answered yet.
+/// </summary>
 public class GetActiveQuestionsForAttendeeHandler : IRequestHandler<GetActiveQuestionsForAttendeeQuery, List<Question>>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public GetActiveQuestionsForAttendeeHandler(FacilitationDbContext context)
+    public GetActiveQuestionsForAttendeeHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<List<Question>> Handle(GetActiveQuestionsForAttendeeQuery request, CancellationToken cancellationToken)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
         // Get all active questions for the meeting
-        var activeQuestions = await _context.Questions
+        var activeQuestions = await context.Questions
             .Where(q => q.MeetingId == request.MeetingId && q.Status == QuestionStatus.Active)
             .ToListAsync(cancellationToken);
 
         // Get questions already answered by this attendee
-        var answeredQuestionIds = await _context.QuestionResponses
+        var answeredQuestionIds = await context.QuestionResponses
             .Where(r => r.AttendeeSessionId == request.AttendeeSessionId)
             .Select(r => r.QuestionId)
             .ToListAsync(cancellationToken);

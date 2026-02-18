@@ -7,18 +7,23 @@ using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles submitting a response to a message.
+/// </summary>
 public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, Guid>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public RespondToMessageHandler(FacilitationDbContext context)
+    public RespondToMessageHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Guid> Handle(RespondToMessageCommand request, CancellationToken cancellationToken)
     {
-        var message = await _context.Messages
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var message = await context.Messages
             .FirstOrDefaultAsync(m => m.Id == request.MessageId, cancellationToken);
 
         if (message == null)
@@ -28,7 +33,7 @@ public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, 
             throw new InvalidOperationException("Message is closed and no longer accepting responses");
 
         // Check if user has already responded
-        var existingResponse = await _context.MessageResponses
+        var existingResponse = await context.MessageResponses
             .FirstOrDefaultAsync(r => r.MessageId == request.MessageId && r.SessionId == request.SessionId, cancellationToken);
 
         if (existingResponse != null)
@@ -37,7 +42,7 @@ public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, 
             if (message.ResponseType == MessageResponseType.Reactions)
             {
                 existingResponse.Reaction = request.Reaction;
-                await _context.SaveChangesAsync(cancellationToken);
+                await context.SaveChangesAsync(cancellationToken);
                 return existingResponse.Id;
             }
             else
@@ -76,8 +81,8 @@ public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, 
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.MessageResponses.Add(response);
-        await _context.SaveChangesAsync(cancellationToken);
+        context.MessageResponses.Add(response);
+        await context.SaveChangesAsync(cancellationToken);
         return response.Id;
     }
 }

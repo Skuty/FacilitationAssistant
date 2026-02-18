@@ -6,18 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles reordering agenda stages in a meeting.
+/// </summary>
 public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCommand, bool>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public ReorderAgendaStagesHandler(FacilitationDbContext context)
+    public ReorderAgendaStagesHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<bool> Handle(ReorderAgendaStagesCommand request, CancellationToken cancellationToken)
     {
-        var meeting = await _context.Meetings
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
         if (meeting == null || meeting.Status != MeetingStatus.Setup)
@@ -25,7 +30,7 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
             return false;
         }
 
-        var stageToMove = await _context.AgendaStages
+        var stageToMove = await context.AgendaStages
             .FirstOrDefaultAsync(s => s.Id == request.StageId, cancellationToken);
         
         if (stageToMove == null)
@@ -36,7 +41,7 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
         var currentIndex = stageToMove.OrderIndex;
         var newIndex = request.NewOrderIndex;
 
-        var stageCount = await _context.AgendaStages
+        var stageCount = await context.AgendaStages
             .CountAsync(s => s.MeetingId == request.MeetingId, cancellationToken);
 
         // Validate new index is within bounds
@@ -52,7 +57,7 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
         }
 
         // Reorder stages
-        var sortedStages = await _context.AgendaStages
+        var sortedStages = await context.AgendaStages
             .Where(s => s.MeetingId == request.MeetingId)
             .OrderBy(s => s.OrderIndex)
             .ToListAsync(cancellationToken);
@@ -69,7 +74,7 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
             sortedStages[i].OrderIndex = i;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

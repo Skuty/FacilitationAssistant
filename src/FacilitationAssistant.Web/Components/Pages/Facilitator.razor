@@ -4,9 +4,11 @@
 @using FacilitationAssistant.Core.Queries
 @using FacilitationAssistant.Core.Commands
 @using Mediator
+@using Microsoft.AspNetCore.SignalR.Client
 @inject IMediator Mediator
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <PageTitle>Facilitator View - @(meeting?.Title ?? "Meeting")</PageTitle>
 
@@ -770,10 +772,10 @@ else
     public string Token { get; set; } = string.Empty;
 
     private Meeting? meeting;
+    private HubConnection? _hubConnection;
     private bool showLinksPanel = false;
     private bool showEndMeetingDialog = false;
     private bool showSettings = false;
-    private System.Threading.Timer? refreshTimer;
     
     // Security: Link management
     private bool facilitatorLinkRevealed = false;
@@ -827,16 +829,34 @@ else
             return;
         }
         
-        // Refresh every second for time updates and every 5 seconds for data
-        refreshTimer = new System.Threading.Timer(async _ =>
+        // Setup SignalR connection
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/meetinghub"))
+            .WithAutomaticReconnect()
+            .Build();
+        
+        // Handle meeting updates
+        _hubConnection.On<string>("MeetingUpdated", async (updateType) =>
         {
-            // Reload meeting data every 5 seconds for real-time updates
-            if (DateTime.UtcNow.Second % 5 == 0)
+            await LoadMeeting();
+            
+            // Check if meeting ended
+            if (meeting?.Status == MeetingStatus.Ended)
             {
-                await LoadMeeting();
+                await InvokeAsync(() => Navigation.NavigateTo($"/summary/{Token}"));
+                return;
             }
+            
             await InvokeAsync(StateHasChanged);
-        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        });
+        
+        await _hubConnection.StartAsync();
+        
+        // Join meeting group
+        if (meeting != null)
+        {
+            await _hubConnection.InvokeAsync("JoinMeeting", meeting.Id.ToString());
+        }
     }
 
     private async Task LoadMeeting()
@@ -1292,9 +1312,12 @@ else
         await LoadMeeting();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        refreshTimer?.Dispose();
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 
     private async Task AcknowledgeConcern(Guid concernId)

@@ -7,30 +7,37 @@ using Microsoft.Extensions.Logging;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Retrieves a meeting by its facilitator or attendee token
+/// </summary>
 public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, Meeting?>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
     private readonly ILogger<GetMeetingByTokenHandler> _logger;
 
-    public GetMeetingByTokenHandler(FacilitationDbContext context, ILogger<GetMeetingByTokenHandler> logger)
+    public GetMeetingByTokenHandler(
+        IDbContextFactory<FacilitationDbContext> contextFactory, 
+        ILogger<GetMeetingByTokenHandler> logger)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _logger = logger;
     }
 
     public async ValueTask<Meeting?> Handle(GetMeetingByTokenQuery request, CancellationToken cancellationToken)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
         try
         {
             Meeting? meeting;
             if (request.IsFacilitator)
             {
-                meeting = await _context.Meetings
+                meeting = await context.Meetings
                     .FirstOrDefaultAsync(m => m.FacilitatorToken == request.Token, cancellationToken);
             }
             else
             {
-                meeting = await _context.Meetings
+                meeting = await context.Meetings
                     .FirstOrDefaultAsync(m => m.AttendeeToken == request.Token, cancellationToken);
             }
 
@@ -41,14 +48,14 @@ public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, 
             }
 
             // Manually load related entities (separate containers in Cosmos DB)
-            meeting.Stages = await _context.AgendaStages
+            meeting.Stages = await context.AgendaStages
                 .Where(s => s.MeetingId == meeting.Id)
                 .OrderBy(s => s.OrderIndex)
                 .ToListAsync(cancellationToken);
 
             if (request.IsFacilitator)
             {
-                meeting.Notes = await _context.Notes
+                meeting.Notes = await context.Notes
                     .Where(n => n.MeetingId == meeting.Id)
                     .OrderByDescending(n => n.CreatedAt)
                     .ToListAsync(cancellationToken);

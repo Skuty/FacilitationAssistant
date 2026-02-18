@@ -5,18 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
+/// <summary>
+/// Handles acknowledging a concern raised during a meeting.
+/// </summary>
 public class AcknowledgeConcernHandler : ICommandHandler<AcknowledgeConcernCommand>
 {
-    private readonly FacilitationDbContext _context;
+    private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
 
-    public AcknowledgeConcernHandler(FacilitationDbContext context)
+    public AcknowledgeConcernHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Unit> Handle(AcknowledgeConcernCommand request, CancellationToken cancellationToken)
     {
-        var concern = await _context.Concerns
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        
+        var concern = await context.Concerns
             .FirstOrDefaultAsync(c => c.Id == request.ConcernId, cancellationToken);
             
         if (concern == null)
@@ -25,7 +30,7 @@ public class AcknowledgeConcernHandler : ICommandHandler<AcknowledgeConcernComma
         concern.IsAcknowledged = true;
         concern.AcknowledgedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
         return Unit.Value;
     }
 }
