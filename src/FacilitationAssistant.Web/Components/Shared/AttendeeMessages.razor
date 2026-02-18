@@ -233,7 +233,7 @@
             // Auto-show first message
             await ShowNextMessage();
         }
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     public int GetPendingCount() => pendingMessages.Count;
