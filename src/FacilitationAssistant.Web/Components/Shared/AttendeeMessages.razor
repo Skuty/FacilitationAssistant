@@ -127,21 +127,21 @@
             messageDetails = await Mediator.Send(new GetMessageByIdQuery(currentMessage.Id, SessionId));
         }
 
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
-    private void DismissMessage()
+    private async Task DismissMessage()
     {
         currentMessage = null;
         messageDetails = null;
         pendingMessages.RemoveAt(0);
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
-    private void DismissNotification()
+    private async Task DismissNotification()
     {
         pendingMessages.Clear();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task RespondWithReaction(string reaction)
@@ -159,9 +159,9 @@
             ));
 
             hasResponded = true;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
             await Task.Delay(1000); // Show success briefly
-            DismissMessage();
+            await DismissMessage();
         }
         catch (Exception ex)
         {
@@ -184,9 +184,9 @@
             ));
 
             hasResponded = true;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
             await Task.Delay(1000); // Show success briefly
-            DismissMessage();
+            await DismissMessage();
         }
         catch (Exception ex)
         {
@@ -209,9 +209,9 @@
             ));
 
             hasResponded = true;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
             await Task.Delay(1000); // Show success briefly
-            DismissMessage();
+            await DismissMessage();
         }
         catch (Exception ex)
         {
