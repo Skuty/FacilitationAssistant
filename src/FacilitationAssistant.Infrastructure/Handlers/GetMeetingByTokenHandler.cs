@@ -25,22 +25,37 @@ public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, 
             Meeting? meeting;
             if (request.IsFacilitator)
             {
-                meeting = await _context.Meetings.FirstOrDefaultAsync(m => m.FacilitatorToken == request.Token, cancellationToken);
+                meeting = await _context.Meetings
+                    .FirstOrDefaultAsync(m => m.FacilitatorToken == request.Token, cancellationToken);
             }
             else
             {
-                meeting = await _context.Meetings.FirstOrDefaultAsync(m => m.AttendeeToken == request.Token, cancellationToken);
+                meeting = await _context.Meetings
+                    .FirstOrDefaultAsync(m => m.AttendeeToken == request.Token, cancellationToken);
             }
 
             if (meeting == null)
             {
                 _logger.LogWarning("Meeting not found for token (IsFacilitator: {IsFacilitator})", request.IsFacilitator);
+                return null;
             }
-            else
+
+            // Manually load related entities (separate containers in Cosmos DB)
+            meeting.Stages = await _context.AgendaStages
+                .Where(s => s.MeetingId == meeting.Id)
+                .OrderBy(s => s.OrderIndex)
+                .ToListAsync(cancellationToken);
+
+            if (request.IsFacilitator)
             {
-                _logger.LogInformation("Meeting {MeetingId} loaded successfully (IsFacilitator: {IsFacilitator})", 
-                    meeting.Id, request.IsFacilitator);
+                meeting.Notes = await _context.Notes
+                    .Where(n => n.MeetingId == meeting.Id)
+                    .OrderByDescending(n => n.CreatedAt)
+                    .ToListAsync(cancellationToken);
             }
+
+            _logger.LogInformation("Meeting {MeetingId} loaded successfully with {StageCount} stages (IsFacilitator: {IsFacilitator})", 
+                meeting.Id, meeting.Stages.Count, request.IsFacilitator);
 
             return meeting;
         }
