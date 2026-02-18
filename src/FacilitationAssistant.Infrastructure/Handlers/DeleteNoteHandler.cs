@@ -1,6 +1,8 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -11,10 +13,14 @@ namespace FacilitationAssistant.Infrastructure.Handlers;
 public class DeleteNoteHandler : IRequestHandler<DeleteNoteCommand, bool>
 {
     private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public DeleteNoteHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
+    public DeleteNoteHandler(
+        IDbContextFactory<FacilitationDbContext> contextFactory,
+        IHubContext<MeetingHub> hubContext)
     {
         _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<bool> Handle(DeleteNoteCommand request, CancellationToken cancellationToken)
@@ -31,8 +37,15 @@ public class DeleteNoteHandler : IRequestHandler<DeleteNoteCommand, bool>
         if (note.SessionId != request.SessionId)
             return false;
 
+        var meetingId = note.MeetingId;
+        
         context.Notes.Remove(note);
         await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients in the meeting group
+        await _hubContext.Clients.Group(meetingId.ToString())
+            .SendAsync("MeetingUpdated", "note_deleted", cancellationToken);
+        
         return true;
     }
 }

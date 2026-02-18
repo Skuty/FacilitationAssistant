@@ -1,6 +1,8 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Encodings.Web;
 
@@ -12,10 +14,14 @@ namespace FacilitationAssistant.Infrastructure.Handlers;
 public class UpdateNoteHandler : IRequestHandler<UpdateNoteCommand, bool>
 {
     private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public UpdateNoteHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
+    public UpdateNoteHandler(
+        IDbContextFactory<FacilitationDbContext> contextFactory,
+        IHubContext<MeetingHub> hubContext)
     {
         _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<bool> Handle(UpdateNoteCommand request, CancellationToken cancellationToken)
@@ -47,6 +53,11 @@ public class UpdateNoteHandler : IRequestHandler<UpdateNoteCommand, bool>
         }
 
         await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients in the meeting group
+        await _hubContext.Clients.Group(note.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "note_updated", cancellationToken);
+        
         return true;
     }
 }

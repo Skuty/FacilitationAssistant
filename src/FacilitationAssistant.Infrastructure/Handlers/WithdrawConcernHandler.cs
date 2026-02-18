@@ -1,6 +1,8 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -11,10 +13,14 @@ namespace FacilitationAssistant.Infrastructure.Handlers;
 public class WithdrawConcernHandler : ICommandHandler<WithdrawConcernCommand>
 {
     private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public WithdrawConcernHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
+    public WithdrawConcernHandler(
+        IDbContextFactory<FacilitationDbContext> contextFactory,
+        IHubContext<MeetingHub> hubContext)
     {
         _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Unit> Handle(WithdrawConcernCommand request, CancellationToken cancellationToken)
@@ -37,6 +43,11 @@ public class WithdrawConcernHandler : ICommandHandler<WithdrawConcernCommand>
         concern.WithdrawnAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync(cancellationToken);
+        
+        // Notify all clients in the meeting group
+        await _hubContext.Clients.Group(concern.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "concern_withdrawn", cancellationToken);
+        
         return Unit.Value;
     }
 }

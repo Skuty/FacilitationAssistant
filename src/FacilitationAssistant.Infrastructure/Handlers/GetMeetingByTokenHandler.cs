@@ -53,13 +53,12 @@ public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, 
                 .OrderBy(s => s.OrderIndex)
                 .ToListAsync(cancellationToken);
 
-            if (request.IsFacilitator)
-            {
-                meeting.Notes = await context.Notes
-                    .Where(n => n.MeetingId == meeting.Id)
-                    .OrderByDescending(n => n.CreatedAt)
-                    .ToListAsync(cancellationToken);
-            }
+            // Load notes for both facilitators and attendees
+            // Client-side filtering handles visibility (public vs private)
+            meeting.Notes = await context.Notes
+                .Where(n => n.MeetingId == meeting.Id)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToListAsync(cancellationToken);
 
             _logger.LogInformation("Meeting {MeetingId} loaded successfully with {StageCount} stages (IsFacilitator: {IsFacilitator})", 
                 meeting.Id, meeting.Stages.Count, request.IsFacilitator);
