@@ -4,6 +4,7 @@ using FacilitationAssistant.Core.Queries;
 using FacilitationAssistant.Infrastructure.Data;
 using FacilitationAssistant.Infrastructure.Handlers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FacilitationAssistant.Tests;
@@ -24,7 +25,7 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var handler = new CreateMeetingHandler(context);
+        var handler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var command = new CreateMeetingCommand("Test Meeting");
 
         // Act
@@ -42,7 +43,7 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var createHandler = new CreateMeetingHandler(context);
+        var createHandler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var addStageHandler = new AddAgendaStageHandler(context);
 
         var createCommand = new CreateMeetingCommand("Test Meeting");
@@ -77,7 +78,7 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var createHandler = new CreateMeetingHandler(context);
+        var createHandler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var startHandler = new StartMeetingHandler(context);
 
         var createCommand = new CreateMeetingCommand("Test Meeting");
@@ -100,7 +101,7 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var createHandler = new CreateMeetingHandler(context);
+        var createHandler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var addStageHandler = new AddAgendaStageHandler(context);
         var startStageHandler = new StartStageHandler(context);
 
@@ -144,9 +145,9 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var createHandler = new CreateMeetingHandler(context);
+        var createHandler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var addStageHandler = new AddAgendaStageHandler(context);
-        var getMeetingHandler = new GetMeetingByTokenHandler(context);
+        var getMeetingHandler = new GetMeetingByTokenHandler(context, NullLogger<GetMeetingByTokenHandler>.Instance);
 
         var meeting = await createHandler.Handle(new CreateMeetingCommand("Test"), CancellationToken.None);
         await addStageHandler.Handle(
@@ -169,7 +170,7 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var createHandler = new CreateMeetingHandler(context);
+        var createHandler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var addNoteHandler = new AddNoteHandler(context);
 
         var meeting = await createHandler.Handle(new CreateMeetingCommand("Test"), CancellationToken.None);
@@ -191,7 +192,7 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var createHandler = new CreateMeetingHandler(context);
+        var createHandler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var raiseConcernHandler = new RaiseConcernHandler(context);
 
         var meeting = await createHandler.Handle(new CreateMeetingCommand("Test"), CancellationToken.None);
@@ -213,7 +214,7 @@ public class MeetingWorkflowTests
     {
         // Arrange
         var context = CreateInMemoryContext();
-        var createHandler = new CreateMeetingHandler(context);
+        var createHandler = new CreateMeetingHandler(context, NullLogger<CreateMeetingHandler>.Instance);
         var addStageHandler = new AddAgendaStageHandler(context);
         var startMeetingHandler = new StartMeetingHandler(context);
         var startStageHandler = new StartStageHandler(context);

@@ -1,5 +1,6 @@
 ﻿@page "/Error"
 @using System.Diagnostics
+@inject ILogger<Error> Logger
 
 <PageTitle>Error</PageTitle>
 
@@ -31,6 +32,16 @@
     private string? RequestId { get; set; }
     private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
         RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+        
+        var exception = HttpContext?.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+        if (exception != null)
+        {
+            Logger.LogError(exception, "Error page rendered for RequestId: {RequestId}, Path: {Path}",
+                RequestId,
+                HttpContext?.Request.Path);
+        }
+    }
 }

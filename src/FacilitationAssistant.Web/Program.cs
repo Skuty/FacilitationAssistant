@@ -1,6 +1,7 @@
 using FacilitationAssistant.Infrastructure.Data;
 using FacilitationAssistant.Web.Components;
 using FacilitationAssistant.Web.Hubs;
+using FacilitationAssistant.Web.Middleware;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
 
@@ -71,8 +72,16 @@ builder.Services.AddMediator();
 
 var app = builder.Build();
 
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+app.UseMiddleware<ExceptionLoggingMiddleware>();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
@@ -100,11 +109,11 @@ if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
         using var scope = app.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<FacilitationDbContext>();
         await context.Database.EnsureCreatedAsync();
-        Console.WriteLine("Database initialized successfully");
+        logger.LogInformation("Database initialized successfully");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Warning: Database initialization failed: {ex.Message}");
+        logger.LogWarning(ex, "Database initialization failed");
     }
 }
 
