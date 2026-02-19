@@ -59,9 +59,6 @@ public class FacilitationDbContext : DbContext
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Description).HasMaxLength(500);
             
-            // Index for queries
-            entity.HasIndex(e => e.MeetingId);
-            
             // Ignore navigation properties
             entity.Ignore(e => e.Meeting);
         });
@@ -74,11 +71,6 @@ public class FacilitationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Content).IsRequired();
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
-            
-            // Indexes for queries
-            entity.HasIndex(e => e.MeetingId);
-            entity.HasIndex(e => e.SessionId);
-            entity.HasIndex(e => e.StageId);
             
             // Ignore navigation properties
             entity.Ignore(e => e.Meeting);
@@ -96,10 +88,6 @@ public class FacilitationDbContext : DbContext
             entity.Property(e => e.CustomText).HasMaxLength(500);
             entity.Property(e => e.ResponseText).HasMaxLength(500);
             
-            // Indexes for queries
-            entity.HasIndex(e => e.MeetingId);
-            entity.HasIndex(e => e.SessionId);
-            
             // Ignore navigation properties
             entity.Ignore(e => e.Meeting);
             entity.Ignore(e => e.Votes);
@@ -112,10 +100,6 @@ public class FacilitationDbContext : DbContext
             entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
-            
-            // Indexes for queries
-            entity.HasIndex(e => e.ConcernId);
-            entity.HasIndex(e => e.SessionId);
             
             // Ignore navigation properties
             entity.Ignore(e => e.Concern);
@@ -130,10 +114,6 @@ public class FacilitationDbContext : DbContext
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.DisplayName).HasMaxLength(30);
             
-            // Indexes for queries
-            entity.HasIndex(e => e.MeetingId);
-            entity.HasIndex(e => e.SessionId);
-            
             // Ignore navigation properties
             entity.Ignore(e => e.Meeting);
         });
@@ -147,11 +127,6 @@ public class FacilitationDbContext : DbContext
             entity.Property(e => e.Text).IsRequired().HasMaxLength(300);
             entity.Property(e => e.ScaleMinLabel).HasMaxLength(100);
             entity.Property(e => e.ScaleMaxLabel).HasMaxLength(100);
-            
-            // Indexes for queries
-            entity.HasIndex(e => e.MeetingId);
-            entity.HasIndex(e => e.AssociatedStageId);
-            entity.HasIndex(e => e.Status);
             
             // Ignore navigation properties
             entity.Ignore(e => e.Meeting);
@@ -168,9 +143,6 @@ public class FacilitationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OptionText).IsRequired().HasMaxLength(100);
             
-            // Index for queries
-            entity.HasIndex(e => e.QuestionId);
-            
             // Ignore navigation properties
             entity.Ignore(e => e.Question);
         });
@@ -184,10 +156,6 @@ public class FacilitationDbContext : DbContext
             entity.Property(e => e.AttendeeSessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.AnswerText).HasMaxLength(1000);
             
-            // Indexes for queries
-            entity.HasIndex(e => e.QuestionId);
-            entity.HasIndex(e => e.AttendeeSessionId);
-            
             // Ignore navigation properties
             entity.Ignore(e => e.Question);
         });
@@ -199,9 +167,6 @@ public class FacilitationDbContext : DbContext
             entity.HasNoDiscriminator();
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Text).IsRequired().HasMaxLength(1000);
-            
-            // Index for queries
-            entity.HasIndex(e => e.MeetingId);
             
             // Ignore navigation properties
             entity.Ignore(e => e.Meeting);
@@ -217,9 +182,6 @@ public class FacilitationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Text).IsRequired().HasMaxLength(100);
             
-            // Index for queries
-            entity.HasIndex(e => e.MessageId);
-            
             // Ignore navigation properties
             entity.Ignore(e => e.Message);
         });
@@ -233,10 +195,6 @@ public class FacilitationDbContext : DbContext
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Reaction).HasMaxLength(10);
             entity.Property(e => e.FreeText).HasMaxLength(500);
-            
-            // Indexes for queries
-            entity.HasIndex(e => e.MessageId);
-            entity.HasIndex(e => e.SessionId);
             
             // Ignore navigation properties
             entity.Ignore(e => e.Message);
