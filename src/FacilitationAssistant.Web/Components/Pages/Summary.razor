@@ -46,7 +46,6 @@ else
                         <h4 class="mb-0"><span aria-hidden="true">✅</span> @meeting.Title</h4>
                         <small>Meeting Summary | Ended @meeting.EndedAt?.ToString("MMM dd, yyyy HH:mm")</small>
                     </div>
-                    <button class="btn btn-light" @onclick="PrintSummary" aria-label="Print summary"><span aria-hidden="true">🖨️</span> Print</button>
                 </div>
             </div>
         </div>
@@ -329,9 +328,4 @@ else
         };
     }
 
-    private void PrintSummary()
-    {
-        // In a real implementation, trigger browser print dialog
-        // JSRuntime.InvokeVoidAsync("window.print");
-    }
 }
