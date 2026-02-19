@@ -1050,8 +1050,14 @@ else
 
     private async Task CopyToClipboard(string text)
     {
-        // In a real implementation, use JSInterop to copy to clipboard
-        await Task.CompletedTask;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        }
+        catch
+        {
+            // Fallback: no-op if clipboard API is unavailable
+        }
     }
 
     private string GetElapsedTime()
