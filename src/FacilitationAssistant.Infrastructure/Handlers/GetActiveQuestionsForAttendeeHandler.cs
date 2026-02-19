@@ -23,6 +23,7 @@ public class GetActiveQuestionsForAttendeeHandler : IRequestHandler<GetActiveQue
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         
         // Get all active questions for the meeting
+        // Note: Options are loaded separately to support Cosmos DB (which ignores navigation properties across containers)
         var activeQuestions = await context.Questions
             .Where(q => q.MeetingId == request.MeetingId && q.Status == QuestionStatus.Active)
             .ToListAsync(cancellationToken);
@@ -35,10 +36,28 @@ public class GetActiveQuestionsForAttendeeHandler : IRequestHandler<GetActiveQue
 
         var answeredSet = answeredQuestionIds.ToHashSet();
 
-        // Return only questions not yet answered by this attendee
-        return activeQuestions
+        var unansweredQuestions = activeQuestions
             .Where(q => !answeredSet.Contains(q.Id))
             .OrderBy(q => q.TriggeredAt)
             .ToList();
+
+        if (unansweredQuestions.Count > 0)
+        {
+            var questionIds = unansweredQuestions.Select(q => q.Id).ToHashSet();
+
+            // Load options separately — works for InMemory, SQL Server, and Cosmos DB
+            var allOptions = await context.QuestionOptions
+                .Where(o => questionIds.Contains(o.QuestionId))
+                .ToListAsync(cancellationToken);
+
+            foreach (var question in unansweredQuestions)
+            {
+                question.Options = allOptions
+                    .Where(o => o.QuestionId == question.Id)
+                    .ToList();
+            }
+        }
+
+        return unansweredQuestions;
     }
 }
