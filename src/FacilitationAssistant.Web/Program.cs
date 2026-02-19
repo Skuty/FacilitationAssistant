@@ -1,8 +1,8 @@
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Extensions;
 using FacilitationAssistant.Infrastructure.Hubs;
 using FacilitationAssistant.Web.Components;
 using FacilitationAssistant.Web.Middleware;
-using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -38,43 +38,11 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
-// Configure database based on environment
-// CosmosDB credentials present? → Use CosmosDB (Azure production)
-// Otherwise → Use InMemory (Local development)
-var cosmosEndpoint = builder.Configuration.GetValue<string>("Database:ConnectionStrings:CosmosDB:AccountEndpoint");
-var cosmosKey = builder.Configuration.GetValue<string>("Database:ConnectionStrings:CosmosDB:AccountKey");
-
-if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
-{
-    // CosmosDB - Azure production environment
-    var databaseName = builder.Configuration.GetValue<string>("Database:ConnectionStrings:CosmosDB:DatabaseName") ?? "FacilitationAssistant";
-    
-    builder.Services.AddDbContextFactory<FacilitationDbContext>(options =>
-        options.UseCosmos(cosmosEndpoint, cosmosKey, databaseName));
-    
-    Console.WriteLine($"Using CosmosDB: {databaseName}");
-}
-else
-{
-    // InMemory - Local development (default)
-    var databaseName = builder.Configuration.GetConnectionString("InMemory") 
-        ?? builder.Configuration.GetValue<string>("Database:ConnectionStrings:InMemory") 
-        ?? "FacilitationDb";
-    
-    builder.Services.AddDbContextFactory<FacilitationDbContext>(options =>
-        options.UseInMemoryDatabase(databaseName));
-    
-    Console.WriteLine($"Using InMemory Database: {databaseName}");
-}
+// Configure database provider from settings ("Database:Provider": InMemory | CosmosDb | SqlServer)
+builder.Services.AddDatabase(builder.Configuration);
 
 // Add Mediator
 builder.Services.AddMediator();
-
-// Add Cosmos DB initializer (only registers when Cosmos credentials are present)
-if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
-{
-    builder.Services.AddSingleton<CosmosDbInitializer>();
-}
 
 var app = builder.Build();
 
@@ -107,12 +75,9 @@ app.MapRazorComponents<App>()
 // Map SignalR hub
 app.MapHub<MeetingHub>("/meetinghub");
 
-// Ensure database is created (important for CosmosDB)
-if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
-{
-    logger.LogInformation("Initializing Cosmos DB database and containers...");
-    var initializer = app.Services.GetRequiredService<CosmosDbInitializer>();
-    await initializer.InitializeAsync();
-}
+// Initialize database (provider-specific: Cosmos container creation, SQL migrations, or EnsureCreated)
+logger.LogInformation("Initializing database...");
+var dbInitializer = app.Services.GetRequiredService<IDatabaseInitializer>();
+await dbInitializer.InitializeAsync();
 
 app.Run();
