@@ -21,6 +21,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.44.1" />
   </ItemGroup>
 
   <PropertyGroup>

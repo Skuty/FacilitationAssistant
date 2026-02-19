@@ -70,6 +70,12 @@ else
 // Add Mediator
 builder.Services.AddMediator();
 
+// Add Cosmos DB initializer (only registers when Cosmos credentials are present)
+if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
+{
+    builder.Services.AddSingleton<CosmosDbInitializer>();
+}
+
 var app = builder.Build();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
@@ -104,17 +110,9 @@ app.MapHub<MeetingHub>("/meetinghub");
 // Ensure database is created (important for CosmosDB)
 if (!string.IsNullOrEmpty(cosmosEndpoint) && !string.IsNullOrEmpty(cosmosKey))
 {
-    try
-    {
-        var contextFactory = app.Services.GetRequiredService<IDbContextFactory<FacilitationDbContext>>();
-        await using var context = await contextFactory.CreateDbContextAsync();
-        await context.Database.EnsureCreatedAsync();
-        logger.LogInformation("Database initialized successfully");
-    }
-    catch (Exception ex)
-    {
-        logger.LogWarning(ex, "Database initialization failed");
-    }
+    logger.LogInformation("Initializing Cosmos DB database and containers...");
+    var initializer = app.Services.GetRequiredService<CosmosDbInitializer>();
+    await initializer.InitializeAsync();
 }
 
 app.Run();
