@@ -773,6 +773,7 @@ else
 
     private Meeting? meeting;
     private HubConnection? _hubConnection;
+    private CancellationTokenSource? _tickCts;
     private bool showLinksPanel = false;
     private bool showEndMeetingDialog = false;
     private bool showSettings = false;
@@ -843,9 +844,16 @@ else
             // Check if meeting ended
             if (meeting?.Status == MeetingStatus.Ended)
             {
+                StopTickTimer();
                 await InvokeAsync(() => Navigation.NavigateTo($"/summary/{Token}"));
                 return;
             }
+
+            // Start or stop the local tick timer based on whether a stage is active
+            if (meeting?.Stages.Any(s => s.Status == StageStatus.Active) == true)
+                StartTickTimer();
+            else
+                StopTickTimer();
             
             await InvokeAsync(StateHasChanged);
         });
@@ -857,6 +865,10 @@ else
         {
             await _hubConnection.InvokeAsync("JoinMeeting", meeting.Id.ToString());
         }
+
+        // Start per-second tick if a stage is already active
+        if (meeting?.Stages.Any(s => s.Status == StageStatus.Active) == true)
+            StartTickTimer();
     }
 
     private async Task LoadMeeting()
@@ -1058,6 +1070,30 @@ else
         {
             // Fallback: no-op if clipboard API is unavailable
         }
+    }
+
+    private void StartTickTimer()
+    {
+        if (_tickCts != null) return; // already running
+        _tickCts = new CancellationTokenSource();
+        var cts = _tickCts;
+        _ = Task.Run(async () =>
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            try
+            {
+                while (await timer.WaitForNextTickAsync(cts.Token))
+                    await InvokeAsync(StateHasChanged);
+            }
+            catch (OperationCanceledException) { }
+        });
+    }
+
+    private void StopTickTimer()
+    {
+        _tickCts?.Cancel();
+        _tickCts?.Dispose();
+        _tickCts = null;
     }
 
     private string GetElapsedTime()
@@ -1320,6 +1356,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        StopTickTimer();
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();
