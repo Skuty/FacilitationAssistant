@@ -1,7 +1,9 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Encodings.Web;
 
@@ -13,10 +15,12 @@ namespace FacilitationAssistant.Infrastructure.Handlers;
 public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, Guid>
 {
     private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public RespondToMessageHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
+    public RespondToMessageHandler(IDbContextFactory<FacilitationDbContext> contextFactory, IHubContext<MeetingHub> hubContext)
     {
         _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<Guid> Handle(RespondToMessageCommand request, CancellationToken cancellationToken)
@@ -83,6 +87,11 @@ public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, 
 
         context.MessageResponses.Add(response);
         await context.SaveChangesAsync(cancellationToken);
+
+        // Notify all clients so the facilitator sees live response counts
+        await _hubContext.Clients.Group(message.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "message_response", cancellationToken);
+
         return response.Id;
     }
 }

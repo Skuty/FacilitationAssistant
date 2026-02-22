@@ -912,6 +912,10 @@ else
                 return;
             }
 
+            // Refresh message manager on any message-related update
+            if (messageManager != null)
+                await InvokeAsync(messageManager.Refresh);
+
             // Start or stop the local tick timer based on whether a stage is active
             if (meeting?.Stages.Any(s => s.Status == StageStatus.Active) == true)
                 StartTickTimer();
@@ -1536,7 +1540,8 @@ else
 
     private async Task RefreshMessages()
     {
-        // Message sent or changed - trigger refresh via SignalR if needed
+        if (messageManager != null)
+            await messageManager.Refresh();
         StateHasChanged();
     }
 

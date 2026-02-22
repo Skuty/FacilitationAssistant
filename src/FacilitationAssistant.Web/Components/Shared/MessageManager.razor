@@ -83,7 +83,66 @@
                                     }
                                 </div>
                                 <p class="mb-2">@message.Text</p>
-                                <small class="text-muted">@message.ResponseCount responses</small>
+                                <small class="text-muted">@message.ResponseCount response@(message.ResponseCount == 1 ? "" : "s")</small>
+
+                                @* Inline live response breakdown for question messages *@
+                                @if (message.Type == MessageType.Question && messageDetailsMap.TryGetValue(message.Id, out var inlineDetail))
+                                {
+                                    @if (inlineDetail.Summary != null)
+                                    {
+                                        <div class="mt-2 p-2 bg-light rounded border">
+                                            @if (inlineDetail.ResponseType == MessageResponseType.Reactions && inlineDetail.Summary.ReactionCounts != null && inlineDetail.Summary.ReactionCounts.Any())
+                                            {
+                                                <div class="d-flex flex-wrap gap-3">
+                                                    @foreach (var kvp in inlineDetail.Summary.ReactionCounts.OrderByDescending(k => k.Value))
+                                                    {
+                                                        var pct = inlineDetail.Summary.TotalResponses > 0 ? (int)((kvp.Value / (double)inlineDetail.Summary.TotalResponses) * 100) : 0;
+                                                        <div class="text-center">
+                                                            <div>@kvp.Key</div>
+                                                            <div><small class="fw-bold">@kvp.Value</small> <small class="text-muted">(@pct%)</small></div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                            else if (inlineDetail.ResponseType == MessageResponseType.PredefinedAnswers && inlineDetail.Summary.OptionCounts != null)
+                                            {
+                                                @foreach (var option in inlineDetail.Options.OrderBy(o => o.OrderIndex))
+                                                {
+                                                    var cnt = inlineDetail.Summary.OptionCounts.ContainsKey(option.Id) ? inlineDetail.Summary.OptionCounts[option.Id] : 0;
+                                                    var total = inlineDetail.Summary.TotalResponses;
+                                                    var pct = total > 0 ? (int)((cnt / (double)total) * 100) : 0;
+                                                    <div class="mb-1">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <small>@option.Text</small>
+                                                            <small class="ms-2 text-nowrap">@cnt (@pct%)</small>
+                                                        </div>
+                                                        <div class="progress" style="height: 10px;">
+                                                            <div class="progress-bar" style="width: @pct%" role="progressbar"
+                                                                 aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100"
+                                                                 aria-label="@option.Text: @cnt responses, @pct percent"></div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                            else if (inlineDetail.ResponseType == MessageResponseType.FreeText && inlineDetail.Summary.FreeTextResponses != null && inlineDetail.Summary.FreeTextResponses.Any())
+                                            {
+                                                <details>
+                                                    <summary><small>@inlineDetail.Summary.FreeTextResponses.Count free-text response@(inlineDetail.Summary.FreeTextResponses.Count == 1 ? "" : "s") — click to expand</small></summary>
+                                                    <ul class="mt-1 mb-0 ps-3">
+                                                        @foreach (var resp in inlineDetail.Summary.FreeTextResponses)
+                                                        {
+                                                            <li><small>@resp</small></li>
+                                                        }
+                                                    </ul>
+                                                </details>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="mt-1"><small class="text-muted fst-italic">No responses yet</small></div>
+                                    }
+                                }
                             </div>
                             <div>
                                 @if (!message.IsClosed)
@@ -188,6 +247,7 @@
     [Parameter] public EventCallback OnMessageSent { get; set; }
     
     private List<MessageDto> messages = new();
+    private Dictionary<Guid, MessageDetailDto> messageDetailsMap = new();
     private bool showComposer = false;
     private MessageDetailDto? selectedMessageDetail = null;
     private bool showMessageDetailModal = false;
@@ -204,6 +264,16 @@
     private async Task LoadMessages()
     {
         messages = await Mediator.Send(new GetMessagesByMeetingQuery(MeetingId));
+
+        // Load full details for question messages to show live breakdowns inline
+        var newMap = new Dictionary<Guid, MessageDetailDto>();
+        foreach (var msg in messages.Where(m => m.Type == MessageType.Question))
+        {
+            var detail = await Mediator.Send(new GetMessageByIdQuery(msg.Id));
+            if (detail != null)
+                newMap[msg.Id] = detail;
+        }
+        messageDetailsMap = newMap;
     }
 
     private void ShowComposer()
