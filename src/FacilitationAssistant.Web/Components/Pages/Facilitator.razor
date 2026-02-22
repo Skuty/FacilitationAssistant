@@ -339,6 +339,15 @@ else
                                         </select>
                                     </div>
 
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="allowAnonymousCheck" @bind="newQuestionAllowAnonymousAnswers" />
+                                            <label class="form-check-label" for="allowAnonymousCheck">
+                                                Allow attendees to answer anonymously
+                                            </label>
+                                        </div>
+                                    </div>
+
                                     @if (!string.IsNullOrWhiteSpace(questionError))
                                     {
                                         <div class="alert alert-danger">@questionError</div>
@@ -624,11 +633,11 @@ else
                                                                     }
                                                                     @if (isOwnNote)
                                                                     {
-                                                                        <span class="badge bg-primary ms-1">Facilitator</span>
+                                                                        <span class="badge bg-primary ms-1">@(note.AuthorName ?? "Facilitator")</span>
                                                                     }
                                                                     else
                                                                     {
-                                                                        <span class="badge bg-secondary ms-1">Attendee</span>
+                                                                        <span class="badge bg-secondary ms-1">@(note.AuthorName ?? "Attendee")</span>
                                                                     }
                                                                     @if (note.StageId != null)
                                                                     {
@@ -772,7 +781,17 @@ else
                                                                     <ul class="mt-1 mb-0">
                                                                         @foreach (var answer in results.FreeTextAnswers)
                                                                         {
-                                                                            <li><small>@answer</small></li>
+                                                                            <li>
+                                                                                <small>@answer.Answer</small>
+                                                                                @if (!string.IsNullOrEmpty(answer.AuthorName))
+                                                                                {
+                                                                                    <span class="badge bg-secondary ms-2">@answer.AuthorName</span>
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <span class="badge bg-light text-muted ms-2">Anonymous</span>
+                                                                                }
+                                                                            </li>
                                                                         }
                                                                     </ul>
                                                                 </details>
@@ -856,6 +875,7 @@ else
     private string newScaleMinLabel = string.Empty;
     private string newScaleMaxLabel = string.Empty;
     private string? newQuestionAssociatedStageId = null;
+    private bool newQuestionAllowAnonymousAnswers = false;
     private string questionError = string.Empty;
     private Dictionary<Guid, QuestionResultsDto> questionResults = new();
 
@@ -1277,7 +1297,8 @@ else
                 newQuestionType == QuestionAnswerType.Scale ? newScaleMinLabel : null,
                 newQuestionType == QuestionAnswerType.Scale ? newScaleMaxLabel : null,
                 null, // MaxSelectableOptions - not implemented in basic version
-                false // TriggerImmediately
+                false, // TriggerImmediately
+                newQuestionAllowAnonymousAnswers
             );
 
             await Mediator.Send(command);
@@ -1294,6 +1315,7 @@ else
             newScaleMinLabel = string.Empty;
             newScaleMaxLabel = string.Empty;
             newQuestionAssociatedStageId = null;
+            newQuestionAllowAnonymousAnswers = false;
         }
         catch (Exception ex)
         {
@@ -1333,6 +1355,7 @@ else
         var command = new AddNoteCommand(
             meeting.Id,
             "facilitator", // Facilitator session ID
+            userIdentifier,
             newNoteContent,
             newNoteIsPublic,
             activeStage?.Id

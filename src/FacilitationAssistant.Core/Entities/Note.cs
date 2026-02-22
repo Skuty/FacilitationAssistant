@@ -10,6 +10,7 @@ public class Note
     public AgendaStage? Stage { get; set; }
     
     public string SessionId { get; set; } = string.Empty;
+    public string? AuthorName { get; set; }
     public string Content { get; set; } = string.Empty;
     public bool IsPublic { get; set; }
     public DateTime CreatedAt { get; set; }

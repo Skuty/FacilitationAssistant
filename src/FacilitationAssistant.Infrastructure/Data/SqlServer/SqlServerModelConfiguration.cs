@@ -75,6 +75,7 @@ public static class SqlServerModelConfiguration
 
             entity.Property(e => e.Content).IsRequired();
             entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.AuthorName).HasMaxLength(50);
 
             entity.HasIndex(e => e.MeetingId);
 
@@ -177,6 +178,7 @@ public static class SqlServerModelConfiguration
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.AttendeeSessionId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.AuthorName).HasMaxLength(50);
             entity.Property(e => e.AnswerText).HasMaxLength(1000);
 
             entity.HasIndex(e => e.QuestionId);

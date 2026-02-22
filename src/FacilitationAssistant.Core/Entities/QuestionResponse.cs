@@ -7,6 +7,7 @@ public class QuestionResponse
     public Question Question { get; set; } = null!;
     
     public string AttendeeSessionId { get; set; } = string.Empty;
+    public string? AuthorName { get; set; }
     public DateTime SubmittedAt { get; set; }
     public QuestionResponseStatus Status { get; set; } = QuestionResponseStatus.Submitted;
     

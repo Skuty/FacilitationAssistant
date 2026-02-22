@@ -258,7 +258,13 @@ else
                                                             <ul class="mt-1">
                                                                 @foreach (var answer in results.FreeTextAnswers)
                                                                 {
-                                                                    <li><small>@answer</small></li>
+                                                                    <li>
+                                                                        <small>@answer.Answer</small>
+                                                                        @if (!string.IsNullOrEmpty(answer.AuthorName))
+                                                                        {
+                                                                            <span class="badge bg-secondary ms-2">@answer.AuthorName</span>
+                                                                        }
+                                                                    </li>
                                                                 }
                                                             </ul>
                                                         </details>

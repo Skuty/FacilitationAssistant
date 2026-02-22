@@ -13,6 +13,7 @@ public class Question
     public AgendaStage? AssociatedStage { get; set; }
     
     public QuestionResultVisibility ResultVisibility { get; set; } = QuestionResultVisibility.FacilitatorOnly;
+    public bool AllowAnonymousAnswers { get; set; } = false;
     public QuestionStatus Status { get; set; } = QuestionStatus.Draft;
     
     public DateTime CreatedAt { get; set; }

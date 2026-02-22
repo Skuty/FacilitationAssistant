@@ -45,6 +45,7 @@ public class AddNoteHandler : IRequestHandler<AddNoteCommand, Guid>
             Id = Guid.NewGuid(),
             MeetingId = request.MeetingId,
             SessionId = request.SessionId,
+            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : request.AuthorName,
             Content = HtmlEncoder.Default.Encode(request.Content),
             IsPublic = request.IsPublic,
             StageId = request.StageId,

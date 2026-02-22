@@ -9,8 +9,13 @@ public record QuestionResultsDto(
     int TotalSkipped,
     int TotalPending,
     Dictionary<Guid, int>? ChoiceResults,
-    List<string>? FreeTextAnswers,
+    List<FreeTextAnswerDto>? FreeTextAnswers,
     ScaleResultsDto? ScaleResults
+);
+
+public record FreeTextAnswerDto(
+    string Answer,
+    string? AuthorName
 );
 
 public record ScaleResultsDto(

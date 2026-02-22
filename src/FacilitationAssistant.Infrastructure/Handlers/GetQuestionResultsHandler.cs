@@ -45,7 +45,7 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
         var totalPending = Math.Max(0, attendeeCount - totalResponses - totalSkipped);
 
         Dictionary<Guid, int>? choiceResults = null;
-        List<string>? freeTextAnswers = null;
+        List<FreeTextAnswerDto>? freeTextAnswers = null;
         ScaleResultsDto? scaleResults = null;
 
         if (question.AnswerType == QuestionAnswerType.SingleChoice || 
@@ -65,7 +65,7 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
         {
             freeTextAnswers = responses
                 .Where(r => r.Status == QuestionResponseStatus.Submitted && !string.IsNullOrWhiteSpace(r.AnswerText))
-                .Select(r => r.AnswerText!)
+                .Select(r => new FreeTextAnswerDto(r.AnswerText!, r.AuthorName))
                 .ToList();
         }
         else if (question.AnswerType == QuestionAnswerType.Scale)

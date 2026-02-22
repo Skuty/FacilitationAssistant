@@ -71,6 +71,7 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
             ScaleMinLabel = string.IsNullOrWhiteSpace(request.ScaleMinLabel) ? null : HtmlEncoder.Default.Encode(request.ScaleMinLabel),
             ScaleMaxLabel = string.IsNullOrWhiteSpace(request.ScaleMaxLabel) ? null : HtmlEncoder.Default.Encode(request.ScaleMaxLabel),
             MaxSelectableOptions = request.MaxSelectableOptions,
+            AllowAnonymousAnswers = request.AllowAnonymousAnswers,
             Status = request.TriggerImmediately ? QuestionStatus.Active : QuestionStatus.Draft,
             CreatedAt = DateTime.UtcNow,
             TriggeredAt = request.TriggerImmediately ? DateTime.UtcNow : null

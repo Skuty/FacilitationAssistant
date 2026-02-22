@@ -245,7 +245,7 @@ public class MeetingWorkflowTests
         var addNoteHandler = new AddNoteHandler(factory, hubContext);
 
         var meeting = await createHandler.Handle(new CreateMeetingCommand("Test"), CancellationToken.None);
-        var command = new AddNoteCommand(meeting.MeetingId, "session-1", "Test note content", true);
+        var command = new AddNoteCommand(meeting.MeetingId, "session-1", "Test User", "Test note content", true);
 
         // Act
         var noteId = await addNoteHandler.Handle(command, CancellationToken.None);
