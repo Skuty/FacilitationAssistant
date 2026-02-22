@@ -5,6 +5,7 @@
 @using Mediator
 @inject IMediator Mediator
 @inject NavigationManager Navigation
+@using System.Linq
 
 <PageTitle>Meeting Summary - @(meeting?.Title ?? "Meeting")</PageTitle>
 
@@ -179,6 +180,177 @@ else
                 }
 
                 @* Concerns Summary *@
+                @* Poll & Question Results *@
+                @if (questions.Any(q => q.Status != QuestionStatus.Draft))
+                {
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5>📊 Poll Results</h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var question in questions.Where(q => q.Status != QuestionStatus.Draft).OrderBy(q => q.TriggeredAt))
+                            {
+                                var results = questionResults.ContainsKey(question.Id) ? questionResults[question.Id] : null;
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <h6>@question.Text</h6>
+                                        <div class="d-flex gap-2 mb-2 flex-wrap">
+                                            <span class="badge bg-secondary">@question.AnswerType</span>
+                                            <span class="badge @(question.Status == QuestionStatus.Closed ? "bg-success" : "bg-primary")">@question.Status</span>
+                                            @if (question.TriggeredAt.HasValue)
+                                            {
+                                                <small class="text-muted">Triggered: @question.TriggeredAt.Value.ToString("HH:mm")</small>
+                                            }
+                                        </div>
+                                        @if (results != null)
+                                        {
+                                            <div class="p-2 bg-light rounded">
+                                                <small><strong>Responses:</strong> @results.TotalResponses | <strong>Skipped:</strong> @results.TotalSkipped | <strong>Pending:</strong> @results.TotalPending</small>
+
+                                                @if ((question.AnswerType == QuestionAnswerType.SingleChoice || question.AnswerType == QuestionAnswerType.MultipleChoice) && results.ChoiceResults != null)
+                                                {
+                                                    <div class="mt-2">
+                                                        @foreach (var option in question.Options.OrderBy(o => o.OrderIndex))
+                                                        {
+                                                            var count = results.ChoiceResults.ContainsKey(option.Id) ? results.ChoiceResults[option.Id] : 0;
+                                                            var percentage = results.TotalResponses > 0 ? (int)((count / (double)results.TotalResponses) * 100) : 0;
+                                                            <div class="mb-1">
+                                                                <div class="d-flex justify-content-between">
+                                                                    <small>@option.OptionText</small>
+                                                                    <small>@count (@percentage%)</small>
+                                                                </div>
+                                                                <div class="progress" style="height: 15px;">
+                                                                    <div class="progress-bar" style="width: @percentage%" role="progressbar"
+                                                                         aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"
+                                                                         aria-label="@option.OptionText: @count responses, @percentage percent"></div>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                                else if (question.AnswerType == QuestionAnswerType.Scale && results.ScaleResults != null)
+                                                {
+                                                    <div class="mt-2">
+                                                        <small><strong>Average:</strong> @results.ScaleResults.AverageScore.ToString("F1") out of @question.ScaleMax</small>
+                                                        @if (results.ScaleResults.Distribution.Any())
+                                                        {
+                                                            <div class="mt-1">
+                                                                @foreach (var kvp in results.ScaleResults.Distribution.OrderBy(d => d.Key))
+                                                                {
+                                                                    var dist = results.TotalResponses > 0 ? (int)((kvp.Value / (double)results.TotalResponses) * 100) : 0;
+                                                                    <div class="mb-1">
+                                                                        <small>@kvp.Key: @kvp.Value (@dist%)</small>
+                                                                        <div class="progress" style="height: 12px;">
+                                                                            <div class="progress-bar bg-info" style="width: @dist%" role="progressbar"
+                                                                                 aria-valuenow="@dist" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                                else if (question.AnswerType == QuestionAnswerType.FreeText && results.FreeTextAnswers != null && results.FreeTextAnswers.Any())
+                                                {
+                                                    <div class="mt-2">
+                                                        <details>
+                                                            <summary class="btn btn-sm btn-link p-0">View @results.FreeTextAnswers.Count responses</summary>
+                                                            <ul class="mt-1">
+                                                                @foreach (var answer in results.FreeTextAnswers)
+                                                                {
+                                                                    <li><small>@answer</small></li>
+                                                                }
+                                                            </ul>
+                                                        </details>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted mb-0"><small>No responses collected.</small></p>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* Message Question Results *@
+                @if (messageDetails.Any())
+                {
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5>📩 Message Responses</h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var detail in messageDetails.Where(d => d.Type == MessageType.Question).OrderBy(d => d.CreatedAt))
+                            {
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <h6>@detail.Text</h6>
+                                        <small class="text-muted">@detail.CreatedAt.ToString("HH:mm") | @(detail.IsClosed ? "Closed" : "Open")</small>
+                                        @if (detail.Summary != null)
+                                        {
+                                            <div class="mt-2 p-2 bg-light rounded">
+                                                <small><strong>Total responses:</strong> @detail.Summary.TotalResponses</small>
+                                                @if (detail.ResponseType == MessageResponseType.Reactions && detail.Summary.ReactionCounts != null)
+                                                {
+                                                    <div class="d-flex flex-wrap gap-3 mt-2">
+                                                        @foreach (var kvp in detail.Summary.ReactionCounts.OrderByDescending(k => k.Value))
+                                                        {
+                                                            <div class="text-center">
+                                                                <div class="fs-4">@kvp.Key</div>
+                                                                <div class="badge bg-primary">@kvp.Value</div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                                else if (detail.ResponseType == MessageResponseType.PredefinedAnswers && detail.Summary.OptionCounts != null)
+                                                {
+                                                    <div class="mt-2">
+                                                        @foreach (var option in detail.Options.OrderBy(o => o.OrderIndex))
+                                                        {
+                                                            var count = detail.Summary.OptionCounts.ContainsKey(option.Id) ? detail.Summary.OptionCounts[option.Id] : 0;
+                                                            var total = detail.Summary.TotalResponses;
+                                                            var percentage = total > 0 ? (int)((count / (double)total) * 100) : 0;
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between">
+                                                                    <small>@option.Text</small>
+                                                                    <small>@count (@percentage%)</small>
+                                                                </div>
+                                                                <div class="progress" style="height: 15px;">
+                                                                    <div class="progress-bar" style="width: @percentage%" role="progressbar"
+                                                                         aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"
+                                                                         aria-label="@option.Text: @count responses, @percentage percent"></div>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                                else if (detail.ResponseType == MessageResponseType.FreeText && detail.Summary.FreeTextResponses != null && detail.Summary.FreeTextResponses.Any())
+                                                {
+                                                    <ul class="mt-2">
+                                                        @foreach (var resp in detail.Summary.FreeTextResponses)
+                                                        {
+                                                            <li><small>@resp</small></li>
+                                                        }
+                                                    </ul>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted mb-0"><small>No responses.</small></p>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 @if (meeting.Concerns.Any())
                 {
                     <div class="card mb-3">
@@ -256,6 +428,9 @@ else
 
     private Meeting? meeting;
     private bool isFacilitator = false;
+    private List<Question> questions = new();
+    private Dictionary<Guid, QuestionResultsDto> questionResults = new();
+    private List<MessageDetailDto> messageDetails = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -266,11 +441,37 @@ else
         if (meeting != null)
         {
             isFacilitator = true;
-            return;
+        }
+        else
+        {
+            var attendeeQuery = new GetMeetingByTokenQuery(Token, false);
+            meeting = await Mediator.Send(attendeeQuery);
         }
 
-        var attendeeQuery = new GetMeetingByTokenQuery(Token, false);
-        meeting = await Mediator.Send(attendeeQuery);
+        if (meeting != null)
+        {
+            // Load questions and their results
+            var questionsQuery = new GetQuestionsByMeetingQuery(meeting.Id);
+            questions = await Mediator.Send(questionsQuery);
+
+            foreach (var question in questions.Where(q => q.Status != QuestionStatus.Draft))
+            {
+                var resultsQuery = new GetQuestionResultsQuery(question.Id);
+                var results = await Mediator.Send(resultsQuery);
+                if (results != null)
+                    questionResults[question.Id] = results;
+            }
+
+            // Load message question details
+            var messagesQuery = new GetMessagesByMeetingQuery(meeting.Id);
+            var messages = await Mediator.Send(messagesQuery);
+            foreach (var message in messages.Where(m => m.Type == MessageType.Question))
+            {
+                var detail = await Mediator.Send(new GetMessageByIdQuery(message.Id));
+                if (detail != null)
+                    messageDetails.Add(detail);
+            }
+        }
     }
 
     private string GetTotalDuration()
