@@ -22,7 +22,9 @@
                         <input type="text" 
                                class="form-control form-control-lg" 
                                id="meetingTitle" 
-                               @bind="meetingTitle" 
+                               @bind="meetingTitle"
+                               @bind:event="oninput"
+                               @onkeydown="OnTitleKeyDown"
                                placeholder="Enter meeting title"
                                maxlength="200" />
                     </div>
@@ -79,6 +81,14 @@
     private string meetingTitle = string.Empty;
     private bool isCreating = false;
     private string errorMessage = string.Empty;
+
+    private async Task OnTitleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !isCreating)
+        {
+            await CreateMeeting();
+        }
+    }
 
     private async Task CreateMeeting()
     {

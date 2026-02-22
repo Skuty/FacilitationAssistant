@@ -5,7 +5,9 @@
 @using Mediator
 @inject IMediator Mediator
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @using System.Linq
+@using System.Text
 
 <PageTitle>Meeting Summary - @(meeting?.Title ?? "Meeting")</PageTitle>
 
@@ -46,6 +48,18 @@ else
                     <div>
                         <h4 class="mb-0"><span aria-hidden="true">✅</span> @meeting.Title</h4>
                         <small>Meeting Summary | Ended @meeting.EndedAt?.ToString("MMM dd, yyyy HH:mm")</small>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-light btn-sm" @onclick="CopyAsMarkdown">
+                            @if (mdCopied)
+                            {
+                                <span>✓ Copied!</span>
+                            }
+                            else
+                            {
+                                <span>📋 Copy as MD</span>
+                            }
+                        </button>
                     </div>
                 </div>
             </div>
@@ -434,6 +448,7 @@ else
 
     private Meeting? meeting;
     private bool isFacilitator = false;
+    private bool mdCopied = false;
     private List<Question> questions = new();
     private Dictionary<Guid, QuestionResultsDto> questionResults = new();
     private List<MessageDetailDto> messageDetails = new();
@@ -533,6 +548,159 @@ else
             StageStatus.Skipped => "bg-secondary",
             _ => "bg-light text-dark"
         };
+    }
+
+    private async Task CopyAsMarkdown()
+    {
+        var md = BuildMarkdown();
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", md);
+        mdCopied = true;
+        StateHasChanged();
+        await Task.Delay(2000);
+        mdCopied = false;
+        StateHasChanged();
+    }
+
+    private string BuildMarkdown()
+    {
+        if (meeting == null) return string.Empty;
+
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"# Meeting Summary: {meeting.Title}");
+        sb.AppendLine();
+        sb.AppendLine($"**Created:** {meeting.CreatedAt:MMM dd, yyyy HH:mm}  ");
+        if (meeting.StartedAt.HasValue)
+            sb.AppendLine($"**Started:** {meeting.StartedAt:MMM dd, yyyy HH:mm}  ");
+        if (meeting.EndedAt.HasValue)
+            sb.AppendLine($"**Ended:** {meeting.EndedAt:MMM dd, yyyy HH:mm}  ");
+        sb.AppendLine($"**Total Duration:** {GetTotalDuration()}  ");
+        sb.AppendLine($"**Planned Duration:** {GetPlannedDuration()}  ");
+        var variance = GetDurationVariance();
+        if (variance != null)
+            sb.AppendLine($"**Variance:** {variance}  ");
+        sb.AppendLine();
+
+        // Agenda
+        if (meeting.Stages.Any())
+        {
+            sb.AppendLine("## Agenda");
+            sb.AppendLine();
+            foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
+            {
+                var actualPart = string.Empty;
+                if (stage.Status == StageStatus.Completed && stage.ActualDurationSeconds.HasValue)
+                {
+                    var actualMin = stage.ActualDurationSeconds.Value / 60;
+                    var v = actualMin - stage.PlannedDurationMinutes;
+                    actualPart = $", Actual: {actualMin} min ({(v > 0 ? "+" : "")}{v} min)";
+                }
+                sb.AppendLine($"### {stage.OrderIndex + 1}. {stage.Name}");
+                sb.AppendLine($"**Status:** {stage.Status} | **Planned:** {stage.PlannedDurationMinutes} min{actualPart}  ");
+                if (!string.IsNullOrEmpty(stage.Description))
+                    sb.AppendLine($"> {stage.Description}  ");
+
+                var stageNotes = meeting.Notes
+                    .Where(n => n.StageId == stage.Id && (isFacilitator || n.IsPublic))
+                    .OrderBy(n => n.CreatedAt)
+                    .ToList();
+                if (stageNotes.Any())
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("**Notes:**");
+                    foreach (var note in stageNotes)
+                    {
+                        var prefix = (!note.IsPublic && isFacilitator) ? "🔒 Private: " : "";
+                        sb.AppendLine($"- {prefix}{note.Content} _{note.CreatedAt:HH:mm}_");
+                    }
+                }
+                sb.AppendLine();
+            }
+        }
+
+        // General Notes
+        var generalNotes = meeting.Notes
+            .Where(n => n.StageId == null && (isFacilitator || n.IsPublic))
+            .OrderBy(n => n.CreatedAt)
+            .ToList();
+        if (generalNotes.Any())
+        {
+            sb.AppendLine("## General Meeting Notes");
+            sb.AppendLine();
+            foreach (var note in generalNotes)
+            {
+                var prefix = (!note.IsPublic && isFacilitator) ? "🔒 Private: " : "";
+                sb.AppendLine($"- {prefix}{note.Content} _{note.CreatedAt:HH:mm}_");
+            }
+            sb.AppendLine();
+        }
+
+        // Polls
+        var activeQuestions = questions.Where(q => q.Status != QuestionStatus.Draft).OrderBy(q => q.TriggeredAt).ToList();
+        if (activeQuestions.Any())
+        {
+            sb.AppendLine("## Poll Results");
+            sb.AppendLine();
+            foreach (var q in activeQuestions)
+            {
+                sb.AppendLine($"### {q.Text}");
+                sb.AppendLine($"**Type:** {q.AnswerType} | **Status:** {q.Status}  ");
+                if (questionResults.TryGetValue(q.Id, out var res))
+                {
+                    sb.AppendLine($"**Responses:** {res.TotalResponses} | **Skipped:** {res.TotalSkipped} | **Pending:** {res.TotalPending}  ");
+                    if ((q.AnswerType == QuestionAnswerType.SingleChoice || q.AnswerType == QuestionAnswerType.MultipleChoice) && res.ChoiceResults != null)
+                    {
+                        sb.AppendLine();
+                        foreach (var opt in q.Options.OrderBy(o => o.OrderIndex))
+                        {
+                            var count = res.ChoiceResults.ContainsKey(opt.Id) ? res.ChoiceResults[opt.Id] : 0;
+                            var pct = res.TotalResponses > 0 ? (int)((count / (double)res.TotalResponses) * 100) : 0;
+                            sb.AppendLine($"- {opt.OptionText}: {count} ({pct}%)");
+                        }
+                    }
+                    else if (q.AnswerType == QuestionAnswerType.Scale && res.ScaleResults != null)
+                    {
+                        sb.AppendLine($"**Average:** {res.ScaleResults.AverageScore:F1} / {q.ScaleMax}  ");
+                    }
+                    else if (q.AnswerType == QuestionAnswerType.FreeText && res.FreeTextAnswers != null && res.FreeTextAnswers.Any())
+                    {
+                        sb.AppendLine();
+                        foreach (var ans in res.FreeTextAnswers)
+                        {
+                            var author = !string.IsNullOrEmpty(ans.AuthorName) ? $" _{ans.AuthorName}_" : "";
+                            sb.AppendLine($"- {ans.Answer}{author}");
+                        }
+                    }
+                }
+                sb.AppendLine();
+            }
+        }
+
+        // Concerns
+        if (meeting.Concerns.Any())
+        {
+            sb.AppendLine("## Concerns Raised");
+            sb.AppendLine();
+            foreach (var concern in meeting.Concerns.OrderBy(c => c.CreatedAt))
+            {
+                var dismissed = concern.IsDismissed ? " ~~(Dismissed)~~" : "";
+                var custom = !string.IsNullOrEmpty(concern.CustomText) ? $": {concern.CustomText}" : "";
+                sb.AppendLine($"- **{concern.ConcernType}**{custom}{dismissed} _{concern.CreatedAt:HH:mm}_");
+            }
+            sb.AppendLine();
+        }
+
+        // Statistics
+        sb.AppendLine("## Statistics");
+        sb.AppendLine();
+        sb.AppendLine($"- **Total Stages:** {meeting.Stages.Count}");
+        sb.AppendLine($"- **Completed:** {meeting.Stages.Count(s => s.Status == StageStatus.Completed)}");
+        sb.AppendLine($"- **Skipped:** {meeting.Stages.Count(s => s.Status == StageStatus.Skipped)}");
+        sb.AppendLine($"- **Not Started:** {meeting.Stages.Count(s => s.Status == StageStatus.NotStarted)}");
+        sb.AppendLine($"- **Total Notes:** {meeting.Notes.Count(n => isFacilitator || n.IsPublic)}");
+        sb.AppendLine($"- **Concerns Raised:** {meeting.Concerns.Count}");
+
+        return sb.ToString();
     }
 
 }
