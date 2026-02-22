@@ -11,7 +11,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <h6>🎭 You are attending anonymously</h6>
+                        <h6>🎭 Your identity</h6>
                         <p class="mb-0">@AttendeeMessage</p>
                     </div>
                     <div class="mb-3">
@@ -33,7 +33,7 @@
 
 @code {
     [Parameter]
-    public string AttendeeNumber { get; set; } = "1";
+    public string AttendeeNumber { get; set; } = "Attendee";
 
     [Parameter]
     public EventCallback OnDismiss { get; set; }
@@ -41,7 +41,7 @@
     private bool isVisible = false;
     private const string TourKey = "attendee-tour-seen";
 
-    private string AttendeeMessage => $"You are identified as Attendee #{AttendeeNumber}. No personal information is collected.";
+    private string AttendeeMessage => $"You are identified as {AttendeeNumber}. No personal information is collected.";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

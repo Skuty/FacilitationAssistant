@@ -14,6 +14,43 @@
 
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
+@* Name prompt – must be completed before accessing the meeting *@
+@if (showNamePrompt)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.85); z-index: 10000;" role="dialog" aria-modal="true" aria-labelledby="facilitatorNameTitle">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: linear-gradient(135deg, #4e54c8 0%, #5e17eb 100%); color: white; border: none;">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title" id="facilitatorNameTitle">🎯 Welcome, Facilitator!</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Enter your name to proceed. You will be assigned a unique identifier to distinguish you from others with the same name.</p>
+                    <div class="mb-3">
+                        <label for="facilitatorNameInput" class="form-label fw-bold">Your Name</label>
+                        <input id="facilitatorNameInput"
+                               type="text"
+                               class="form-control @(!string.IsNullOrEmpty(nameInputError) ? "is-invalid" : "")"
+                               placeholder="e.g. Sarah"
+                               @bind="nameInput"
+                               @bind:event="oninput"
+                               @onkeydown="OnNameKeyDown"
+                               maxlength="30"
+                               autofocus />
+                        @if (!string.IsNullOrEmpty(nameInputError))
+                        {
+                            <div class="invalid-feedback d-block text-white fw-bold">@nameInputError</div>
+                        }
+                        <div class="form-text text-white-50 mt-1">@nameInput.Trim().Length / 30 characters</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light btn-lg" @onclick="SubmitName">Enter Meeting</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @if (meeting == null)
 {
     <div class="text-center mt-5">
@@ -81,7 +118,7 @@ else
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="mb-0"><span aria-hidden="true">🎯</span> @meeting.Title</h4>
-                        <small>Facilitator View | Status: @meeting.Status</small>
+                        <small>Facilitator View | <span aria-hidden="true">👤</span> @userIdentifier | Status: @meeting.Status</small>
                     </div>
                     <div>
                         <button class="btn btn-sm btn-outline-light me-2" @onclick="() => showSettings = true" aria-label="Open settings"><span aria-hidden="true">⚙️</span></button>
@@ -777,6 +814,12 @@ else
     private bool showLinksPanel = false;
     private bool showEndMeetingDialog = false;
     private bool showSettings = false;
+
+    // Name prompt
+    private bool showNamePrompt = true;
+    private string nameInput = string.Empty;
+    private string nameInputError = string.Empty;
+    private string userIdentifier = string.Empty;
     
     // Security: Link management
     private bool facilitatorLinkRevealed = false;
@@ -1472,5 +1515,30 @@ else
     {
         // Message sent or changed - trigger refresh via SignalR if needed
         StateHasChanged();
+    }
+
+    private void SubmitName()
+    {
+        var trimmed = nameInput.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            nameInputError = "Please enter your name.";
+            return;
+        }
+        if (trimmed.Length < 2)
+        {
+            nameInputError = "Name must be at least 2 characters.";
+            return;
+        }
+
+        nameInputError = string.Empty;
+        var suffix = Random.Shared.Next(1000, 10000);
+        userIdentifier = $"{trimmed}-{suffix}";
+        showNamePrompt = false;
+    }
+
+    private void OnNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") SubmitName();
     }
 }
