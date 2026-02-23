@@ -135,6 +135,7 @@ else
                             <span class="badge bg-light text-primary fs-6 me-2" aria-live="off" aria-label="Meeting elapsed time">
                                 <span aria-hidden="true">⏱️</span> @GetElapsedTime()
                             </span>
+                            <button class="btn btn-light btn-sm me-2" @onclick="ShowLinks" id="share-links-btn" aria-label="Share meeting links"><span aria-hidden="true">📎</span> Share Links</button>
                             <button class="btn btn-danger" @onclick="ShowEndMeetingConfirmation" aria-label="End meeting">
                                 <span aria-hidden="true">⏹️</span> End Meeting
                             </button>
@@ -469,6 +470,38 @@ else
                     </div>
                 </div>
                 <div class="col-md-4">
+                    @if (showLinksPanel)
+                    {
+                        <div class="card mb-3">
+                            <div class="card-header bg-warning">
+                                <h6 class="mb-0">⚠️ Meeting Links</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-danger">Facilitator Link (Keep Private!)</label>
+                                    <div class="input-group mb-2">
+                                        <input type="text" class="form-control font-monospace" readonly 
+                                               value="@(facilitatorLinkRevealed ? GetFacilitatorUrl() : "••••••••••••••••••••••••••")" />
+                                        <button class="btn btn-outline-secondary" @onclick="ToggleFacilitatorLinkVisibility">
+                                            @(facilitatorLinkRevealed ? "🙈 Hide" : "👁️ Reveal")
+                                        </button>
+                                        <button class="btn btn-outline-primary" 
+                                                @onclick="() => CopyToClipboard(GetFacilitatorUrl())"
+                                                disabled="@(!facilitatorLinkRevealed)">
+                                            Copy
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label fw-bold">Attendee Link (Share This)</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" readonly value="@GetAttendeeUrl()" />
+                                        <button class="btn btn-outline-secondary" @onclick="() => CopyToClipboard(GetAttendeeUrl())">Copy</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
                     <div class="card mb-3">
                         <div class="card-header">
                             <h6 class="mb-0">📊 Meeting Stats</h6>
