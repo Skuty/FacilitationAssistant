@@ -78,6 +78,14 @@ app.MapHub<MeetingHub>("/meetinghub");
 // Initialize database (provider-specific: Cosmos container creation, SQL migrations, or EnsureCreated)
 logger.LogInformation("Initializing database...");
 var dbInitializer = app.Services.GetRequiredService<IDatabaseInitializer>();
-await dbInitializer.InitializeAsync();
+try
+{
+    await dbInitializer.InitializeAsync();
+}
+catch (Exception ex)
+{
+    logger.LogCritical(ex, "Database initialization failed. The application cannot start.");
+    throw;
+}
 
 app.Run();

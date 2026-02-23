@@ -22,7 +22,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Facilitati
             .UseSqlServer(
                 "Server=(localdb)\\mssqllocaldb;Database=FacilitationAssistant_Design;Trusted_Connection=True;",
                 sqlOptions => sqlOptions.MigrationsAssembly(
-                    typeof(DesignTimeDbContextFactory).Assembly.FullName))
+                    typeof(DesignTimeDbContextFactory).Assembly.GetName().Name))
             .Options;
 
         return new FacilitationDbContext(options, DatabaseProvider.SqlServer);
