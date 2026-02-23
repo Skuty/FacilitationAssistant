@@ -40,12 +40,15 @@ public class AddNoteHandler : IRequestHandler<AddNoteCommand, Guid>
         if (noteCount >= 100)
             throw new InvalidOperationException("Meeting has reached the maximum limit of 100 notes.");
 
+        if (request.AuthorName != null && request.AuthorName.Length > 50)
+            throw new ArgumentException("Author name must not exceed 50 characters.");
+
         var note = new Note
         {
             Id = Guid.NewGuid(),
             MeetingId = request.MeetingId,
             SessionId = request.SessionId,
-            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : request.AuthorName,
+            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : HtmlEncoder.Default.Encode(request.AuthorName),
             Content = HtmlEncoder.Default.Encode(request.Content),
             IsPublic = request.IsPublic,
             StageId = request.StageId,

@@ -43,12 +43,15 @@ public class SubmitQuestionResponseHandler : IRequestHandler<SubmitQuestionRespo
         if (existingResponse != null)
             throw new InvalidOperationException("You have already answered this question");
 
+        if (request.AuthorName != null && request.AuthorName.Length > 50)
+            throw new ArgumentException("Author name must not exceed 50 characters.");
+
         var response = new QuestionResponse
         {
             Id = Guid.NewGuid(),
             QuestionId = request.QuestionId,
             AttendeeSessionId = request.AttendeeSessionId,
-            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : request.AuthorName,
+            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : HtmlEncoder.Default.Encode(request.AuthorName),
             AnswerChoiceIds = request.AnswerChoiceIds ?? new List<string>(),
             AnswerText = string.IsNullOrWhiteSpace(request.AnswerText) ? null : HtmlEncoder.Default.Encode(request.AnswerText),
             AnswerScaleValue = request.AnswerScaleValue,
