@@ -141,6 +141,7 @@ namespace FacilitationAssistant.Infrastructure.Data.SqlServer.Migrations
                     MeetingId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     StageId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     SessionId = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    AuthorName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     IsPublic = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -153,8 +154,7 @@ namespace FacilitationAssistant.Infrastructure.Data.SqlServer.Migrations
                         name: "FK_Notes_AgendaStages_StageId",
                         column: x => x.StageId,
                         principalTable: "AgendaStages",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Notes_Meetings_MeetingId",
                         column: x => x.MeetingId,
@@ -174,6 +174,7 @@ namespace FacilitationAssistant.Infrastructure.Data.SqlServer.Migrations
                     TriggerType = table.Column<int>(type: "int", nullable: false),
                     AssociatedStageId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ResultVisibility = table.Column<int>(type: "int", nullable: false),
+                    AllowAnonymousAnswers = table.Column<bool>(type: "bit", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     TriggeredAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -191,8 +192,7 @@ namespace FacilitationAssistant.Infrastructure.Data.SqlServer.Migrations
                         name: "FK_Questions_AgendaStages_AssociatedStageId",
                         column: x => x.AssociatedStageId,
                         principalTable: "AgendaStages",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Questions_Meetings_MeetingId",
                         column: x => x.MeetingId,
@@ -292,6 +292,7 @@ namespace FacilitationAssistant.Infrastructure.Data.SqlServer.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     QuestionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     AttendeeSessionId = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    AuthorName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     SubmittedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     AnswerChoiceIds = table.Column<string>(type: "nvarchar(max)", nullable: false),

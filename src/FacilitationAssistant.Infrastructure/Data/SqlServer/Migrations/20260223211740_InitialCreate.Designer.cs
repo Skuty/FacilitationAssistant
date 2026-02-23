@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacilitationAssistant.Infrastructure.Data.SqlServer.Migrations
 {
     [DbContext(typeof(FacilitationDbContext))]
-    [Migration("20260223210858_FixQuestionStageCascade")]
-    partial class FixQuestionStageCascade
+    [Migration("20260223211740_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
