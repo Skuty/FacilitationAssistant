@@ -79,12 +79,15 @@ public static class SqlServerModelConfiguration
 
             entity.HasIndex(e => e.MeetingId);
 
-            // Optional relationship to AgendaStage — set null when stage is deleted
+            // Optional relationship to AgendaStage — set null when stage is deleted.
+            // ClientSetNull (not SetNull) avoids the SQL Server "multiple cascade paths" error:
+            // Meeting → Notes (CASCADE) and Meeting → Stages → Notes (CASCADE + SetNull) would
+            // both touch Notes. EF Core handles the null-out in memory instead of at DB level.
             entity.HasOne(n => n.Stage)
                   .WithMany()
                   .HasForeignKey(n => n.StageId)
                   .IsRequired(false)
-                  .OnDelete(DeleteBehavior.SetNull);
+                  .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         // ── Concern ───────────────────────────────────────────────────────────

@@ -38,6 +38,13 @@ public class DeleteAgendaStageHandler : IRequestHandler<DeleteAgendaStageCommand
         if (stage.Status != StageStatus.NotStarted)
             throw new InvalidOperationException("Cannot delete a stage that has already started or been completed");
 
+        // Load notes attached to this stage so EF's ClientSetNull behaviour can
+        // null out their StageId before the stage row is deleted.
+        // (ClientSetNull only affects entities that are tracked in this context.)
+        await context.Notes
+            .Where(n => n.StageId == request.StageId)
+            .LoadAsync(cancellationToken);
+
         context.AgendaStages.Remove(stage);
         
         // Reorder remaining stages to close the gap
