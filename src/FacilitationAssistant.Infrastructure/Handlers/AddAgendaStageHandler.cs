@@ -3,7 +3,6 @@ using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -36,8 +35,8 @@ public class AddAgendaStageHandler : IRequestHandler<AddAgendaStageCommand, Guid
         {
             Id = Guid.NewGuid(),
             MeetingId = request.MeetingId,
-            Name = HtmlEncoder.Default.Encode(request.Name),
-            Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : HtmlEncoder.Default.Encode(request.Description),
+            Name = request.Name,
+            Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : request.Description,
             PlannedDurationMinutes = request.PlannedDurationMinutes,
             OrderIndex = request.OrderIndex,
             Status = StageStatus.NotStarted

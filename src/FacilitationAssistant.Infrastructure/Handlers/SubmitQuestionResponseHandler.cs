@@ -5,7 +5,6 @@ using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -51,9 +50,9 @@ public class SubmitQuestionResponseHandler : IRequestHandler<SubmitQuestionRespo
             Id = Guid.NewGuid(),
             QuestionId = request.QuestionId,
             AttendeeSessionId = request.AttendeeSessionId,
-            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : HtmlEncoder.Default.Encode(request.AuthorName),
+            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : request.AuthorName,
             AnswerChoiceIds = request.AnswerChoiceIds ?? new List<string>(),
-            AnswerText = string.IsNullOrWhiteSpace(request.AnswerText) ? null : HtmlEncoder.Default.Encode(request.AnswerText),
+            AnswerText = string.IsNullOrWhiteSpace(request.AnswerText) ? null : request.AnswerText,
             AnswerScaleValue = request.AnswerScaleValue,
             Status = request.Status,
             SubmittedAt = DateTime.UtcNow

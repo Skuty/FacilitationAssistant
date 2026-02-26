@@ -4,8 +4,6 @@ using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
-
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
 /// <summary>
@@ -34,7 +32,7 @@ public class RespondToConcernHandler : ICommandHandler<RespondToConcernCommand>
         if (concern == null)
             throw new InvalidOperationException("Concern not found");
 
-        concern.ResponseText = string.IsNullOrWhiteSpace(request.ResponseText) ? null : HtmlEncoder.Default.Encode(request.ResponseText);
+        concern.ResponseText = string.IsNullOrWhiteSpace(request.ResponseText) ? null : request.ResponseText;
         concern.RespondedAt = DateTime.UtcNow;
         
         // Automatically acknowledge when responding

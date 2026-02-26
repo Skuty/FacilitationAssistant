@@ -5,7 +5,6 @@ using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -81,7 +80,7 @@ public class RespondToMessageHandler : IRequestHandler<RespondToMessageCommand, 
             SessionId = request.SessionId,
             Reaction = request.Reaction,
             SelectedOptionId = request.SelectedOptionId,
-            FreeText = string.IsNullOrWhiteSpace(request.FreeText) ? null : HtmlEncoder.Default.Encode(request.FreeText),
+            FreeText = string.IsNullOrWhiteSpace(request.FreeText) ? null : request.FreeText,
             CreatedAt = DateTime.UtcNow
         };
 

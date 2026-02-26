@@ -4,8 +4,6 @@ using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Text.Encodings.Web;
-
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
 /// <summary>
@@ -36,7 +34,7 @@ public class CreateMeetingHandler : IRequestHandler<CreateMeetingCommand, Create
             var meeting = new Meeting
             {
                 Id = Guid.NewGuid(),
-                Title = string.IsNullOrWhiteSpace(request.Title) ? "New Meeting" : HtmlEncoder.Default.Encode(request.Title),
+                Title = string.IsNullOrWhiteSpace(request.Title) ? "New Meeting" : request.Title,
                 FacilitatorToken = facilitatorToken,
                 AttendeeToken = attendeeToken,
                 CreatedAt = DateTime.UtcNow,

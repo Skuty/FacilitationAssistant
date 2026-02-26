@@ -5,7 +5,6 @@ using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -46,7 +45,7 @@ public class RaiseConcernHandler : IRequestHandler<RaiseConcernCommand, Guid>
             MeetingId = request.MeetingId,
             SessionId = request.SessionId,
             ConcernType = request.ConcernType,
-            CustomText = string.IsNullOrWhiteSpace(request.CustomText) ? null : HtmlEncoder.Default.Encode(request.CustomText),
+            CustomText = string.IsNullOrWhiteSpace(request.CustomText) ? null : request.CustomText,
             CreatedAt = DateTime.UtcNow,
             IsDismissed = false,
             IsAcknowledged = false,

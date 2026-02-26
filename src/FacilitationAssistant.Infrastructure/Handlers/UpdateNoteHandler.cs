@@ -4,8 +4,6 @@ using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
-
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
 /// <summary>
@@ -41,7 +39,7 @@ public class UpdateNoteHandler : IRequestHandler<UpdateNoteCommand, bool>
         // Update content if provided
         if (request.Content != null)
         {
-            note.Content = HtmlEncoder.Default.Encode(request.Content);
+            note.Content = request.Content;
             note.UpdatedAt = DateTime.UtcNow;
         }
 

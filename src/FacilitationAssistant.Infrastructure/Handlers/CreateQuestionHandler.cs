@@ -3,7 +3,6 @@ using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -61,15 +60,15 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
         {
             Id = Guid.NewGuid(),
             MeetingId = request.MeetingId,
-            Text = HtmlEncoder.Default.Encode(request.Text),
+            Text = request.Text,
             AnswerType = request.AnswerType,
             TriggerType = request.TriggerType,
             AssociatedStageId = request.AssociatedStageId,
             ResultVisibility = request.ResultVisibility,
             ScaleMin = request.ScaleMin,
             ScaleMax = request.ScaleMax,
-            ScaleMinLabel = string.IsNullOrWhiteSpace(request.ScaleMinLabel) ? null : HtmlEncoder.Default.Encode(request.ScaleMinLabel),
-            ScaleMaxLabel = string.IsNullOrWhiteSpace(request.ScaleMaxLabel) ? null : HtmlEncoder.Default.Encode(request.ScaleMaxLabel),
+            ScaleMinLabel = string.IsNullOrWhiteSpace(request.ScaleMinLabel) ? null : request.ScaleMinLabel,
+            ScaleMaxLabel = string.IsNullOrWhiteSpace(request.ScaleMaxLabel) ? null : request.ScaleMaxLabel,
             MaxSelectableOptions = request.MaxSelectableOptions,
             AllowAnonymousAnswers = request.AllowAnonymousAnswers,
             Status = request.TriggerImmediately ? QuestionStatus.Active : QuestionStatus.Draft,
@@ -88,7 +87,7 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
                 {
                     Id = Guid.NewGuid(),
                     QuestionId = question.Id,
-                    OptionText = HtmlEncoder.Default.Encode(request.Options[i]),
+                    OptionText = request.Options[i],
                     OrderIndex = i
                 };
                 context.QuestionOptions.Add(option);

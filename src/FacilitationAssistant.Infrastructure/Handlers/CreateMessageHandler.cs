@@ -5,7 +5,6 @@ using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -55,7 +54,7 @@ public class CreateMessageHandler : IRequestHandler<CreateMessageCommand, Guid>
         {
             Id = Guid.NewGuid(),
             MeetingId = request.MeetingId,
-            Text = HtmlEncoder.Default.Encode(request.Text),
+            Text = request.Text,
             Type = request.Type,
             ResponseType = request.ResponseType,
             CreatedAt = DateTime.UtcNow,
@@ -73,7 +72,7 @@ public class CreateMessageHandler : IRequestHandler<CreateMessageCommand, Guid>
                 {
                     Id = Guid.NewGuid(),
                     MessageId = message.Id,
-                    Text = HtmlEncoder.Default.Encode(request.PredefinedOptions[i]),
+                    Text = request.PredefinedOptions[i],
                     OrderIndex = i
                 };
                 context.MessageOptions.Add(option);

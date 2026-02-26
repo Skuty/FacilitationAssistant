@@ -5,7 +5,6 @@ using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Encodings.Web;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
 
@@ -48,8 +47,8 @@ public class AddNoteHandler : IRequestHandler<AddNoteCommand, Guid>
             Id = Guid.NewGuid(),
             MeetingId = request.MeetingId,
             SessionId = request.SessionId,
-            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : HtmlEncoder.Default.Encode(request.AuthorName),
-            Content = HtmlEncoder.Default.Encode(request.Content),
+            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : request.AuthorName,
+            Content = request.Content,
             IsPublic = request.IsPublic,
             StageId = request.StageId,
             CreatedAt = DateTime.UtcNow
