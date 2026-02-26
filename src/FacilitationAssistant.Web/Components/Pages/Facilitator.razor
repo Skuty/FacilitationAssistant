@@ -165,35 +165,60 @@ else
                             {
                                 <div class="card mb-2">
                                     <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
-                                                <small class="text-muted">Duration: @stage.PlannedDurationMinutes min</small>
-                                                @if (!string.IsNullOrEmpty(stage.Description))
-                                                {
-                                                    <p class="mb-0 mt-2"><small>@stage.Description</small></p>
-                                                }
+                                        @if (editingStageId == stage.Id)
+                                        {
+                                            <h6 class="mb-2">Edit Stage @(stage.OrderIndex + 1)</h6>
+                                            <div class="mb-2">
+                                                <input type="text" class="form-control form-control-sm" placeholder="Stage name" @bind="editStageName" maxlength="100" />
                                             </div>
-                                            <div class="btn-group-vertical">
-                                                <button class="btn btn-sm btn-outline-secondary" 
-                                                        @onclick="() => MoveStageUp(stage.Id)" 
-                                                        disabled="@(stage.OrderIndex == 0)"
-                                                        title="Move Up">
-                                                    ▲
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-secondary" 
-                                                        @onclick="() => MoveStageDown(stage.Id)" 
-                                                        disabled="@(stage.OrderIndex == meeting.Stages.Count - 1)"
-                                                        title="Move Down">
-                                                    ▼
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-danger" 
-                                                        @onclick="() => DeleteStage(stage.Id)"
-                                                        title="Delete Stage">
-                                                    🗑️
-                                                </button>
+                                            <div class="mb-2">
+                                                <textarea class="form-control form-control-sm" placeholder="Description (optional)" @bind="editStageDescription" rows="2" maxlength="500"></textarea>
                                             </div>
-                                        </div>
+                                            <div class="mb-2">
+                                                <input type="number" class="form-control form-control-sm" placeholder="Duration (minutes)" @bind="editStageDuration" min="1" max="240" />
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-primary btn-sm" @onclick="SaveEditStage">Save</button>
+                                                <button class="btn btn-outline-secondary btn-sm" @onclick="CancelEditStage">Cancel</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
+                                                    <small class="text-muted">Duration: @stage.PlannedDurationMinutes min</small>
+                                                    @if (!string.IsNullOrEmpty(stage.Description))
+                                                    {
+                                                        <p class="mb-0 mt-2"><small>@stage.Description</small></p>
+                                                    }
+                                                </div>
+                                                <div class="btn-group-vertical">
+                                                    <button class="btn btn-sm btn-outline-primary" 
+                                                            @onclick="() => StartEditStage(stage)"
+                                                            title="Edit Stage">
+                                                        ✏️
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-secondary" 
+                                                            @onclick="() => MoveStageUp(stage.Id)" 
+                                                            disabled="@(stage.OrderIndex == 0)"
+                                                            title="Move Up">
+                                                        ▲
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-secondary" 
+                                                            @onclick="() => MoveStageDown(stage.Id)" 
+                                                            disabled="@(stage.OrderIndex == meeting.Stages.Count - 1)"
+                                                            title="Move Down">
+                                                        ▼
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" 
+                                                            @onclick="() => DeleteStage(stage.Id)"
+                                                            title="Delete Stage">
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
                                     </div>
                                 </div>
                             }
@@ -422,47 +447,76 @@ else
                             {
                                 <div class="card mb-3 @GetStageClass(stage)">
                                     <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <span class="badge @GetStatusBadgeClass(stage.Status)">@stage.Status</span>
-                                                    <small class="text-muted">Planned: @stage.PlannedDurationMinutes min</small>
+                                        @if (editingStageId == stage.Id)
+                                        {
+                                            <h6 class="mb-2">Edit Stage @(stage.OrderIndex + 1)</h6>
+                                            <div class="mb-2">
+                                                <input type="text" class="form-control form-control-sm" placeholder="Stage name" @bind="editStageName" maxlength="100" />
+                                            </div>
+                                            <div class="mb-2">
+                                                <textarea class="form-control form-control-sm" placeholder="Description (optional)" @bind="editStageDescription" rows="2" maxlength="500"></textarea>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label form-label-sm mb-1">Planned duration (minutes)</label>
+                                                <input type="number" class="form-control form-control-sm" @bind="editStageDuration" min="1" max="240" />
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-primary btn-sm" @onclick="SaveEditStage">Save</button>
+                                                <button class="btn btn-outline-secondary btn-sm" @onclick="CancelEditStage">Cancel</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="badge @GetStatusBadgeClass(stage.Status)">@stage.Status</span>
+                                                        <small class="text-muted">Planned: @stage.PlannedDurationMinutes min</small>
+                                                        @if (stage.Status == StageStatus.Active)
+                                                        {
+                                                            <span class="text-primary fw-bold">@GetStageElapsedTime(stage)</span>
+                                                        }
+                                                        @if (stage.Status == StageStatus.Completed)
+                                                        {
+                                                            <span class="text-success">Completed in @(stage.ActualDurationSeconds / 60) min</span>
+                                                        }
+                                                    </div>
+                                                    @if (!string.IsNullOrEmpty(stage.Description))
+                                                    {
+                                                        <p class="mb-0 mt-1"><small class="text-muted">@stage.Description</small></p>
+                                                    }
                                                     @if (stage.Status == StageStatus.Active)
                                                     {
-                                                        <span class="text-primary fw-bold">@GetStageElapsedTime(stage)</span>
-                                                    }
-                                                    @if (stage.Status == StageStatus.Completed)
-                                                    {
-                                                        <span class="text-success">Completed in @(stage.ActualDurationSeconds / 60) min</span>
+                                                        <div class="progress mt-2" style="height: 20px;">
+                                                            <div class="progress-bar @GetProgressBarClass(stage)" 
+                                                                 style="width: @GetProgressPercentage(stage)%"
+                                                                 role="progressbar"
+                                                                 aria-valuenow="@GetProgressPercentage(stage)"
+                                                                 aria-valuemin="0"
+                                                                 aria-valuemax="100"
+                                                                 aria-label="Stage progress: @GetProgressPercentage(stage) percent complete">
+                                                                @GetProgressPercentage(stage)%
+                                                            </div>
+                                                        </div>
                                                     }
                                                 </div>
-                                                @if (stage.Status == StageStatus.Active)
-                                                {
-                                                    <div class="progress mt-2" style="height: 20px;">
-                                                        <div class="progress-bar @GetProgressBarClass(stage)" 
-                                                             style="width: @GetProgressPercentage(stage)%"
-                                                             role="progressbar"
-                                                             aria-valuenow="@GetProgressPercentage(stage)"
-                                                             aria-valuemin="0"
-                                                             aria-valuemax="100"
-                                                             aria-label="Stage progress: @GetProgressPercentage(stage) percent complete">
-                                                            @GetProgressPercentage(stage)%
-                                                        </div>
-                                                    </div>
-                                                }
+                                                <div class="btn-group">
+                                                    @if (stage.Status == StageStatus.NotStarted || stage.Status == StageStatus.Active)
+                                                    {
+                                                        <button class="btn btn-outline-primary btn-sm" @onclick="() => StartEditStage(stage)" title="Edit Stage">✏️</button>
+                                                    }
+                                                    @if (stage.Status == StageStatus.NotStarted || stage.Status == StageStatus.Completed)
+                                                    {
+                                                        <button class="btn btn-success btn-sm" @onclick="() => StartStage(stage.Id)">▶️ Start</button>
+                                                    }
+                                                    @if (stage.Status == StageStatus.Active)
+                                                    {
+                                                        <button class="btn btn-danger btn-sm" @onclick="() => EndStage(stage.Id)">⏹️ End</button>
+                                                    }
+                                                </div>
                                             </div>
-                                            <div class="btn-group">
-                                                @if (stage.Status == StageStatus.NotStarted || stage.Status == StageStatus.Completed)
-                                                {
-                                                    <button class="btn btn-success btn-sm" @onclick="() => StartStage(stage.Id)">▶️ Start</button>
-                                                }
-                                                @if (stage.Status == StageStatus.Active)
-                                                {
-                                                    <button class="btn btn-danger btn-sm" @onclick="() => EndStage(stage.Id)">⏹️ End</button>
-                                                }
-                                            </div>
-                                        </div>
+                                        }
                                     </div>
                                 </div>
                             }
@@ -889,6 +943,12 @@ else
     private string newStageDescription = string.Empty;
     private int newStageDuration = 10;
 
+    // Stage editing fields
+    private Guid? editingStageId = null;
+    private string editStageName = string.Empty;
+    private string editStageDescription = string.Empty;
+    private int editStageDuration = 10;
+
     // Note fields
     private string newNoteContent = string.Empty;
     private bool newNoteIsPublic = true;
@@ -1066,6 +1126,40 @@ else
 
         var command = new DeleteAgendaStageCommand(meeting.Id, stageId);
         await Mediator.Send(command);
+        await LoadMeeting();
+    }
+
+    private void StartEditStage(AgendaStage stage)
+    {
+        editingStageId = stage.Id;
+        editStageName = stage.Name;
+        editStageDescription = stage.Description ?? string.Empty;
+        editStageDuration = stage.PlannedDurationMinutes;
+    }
+
+    private void CancelEditStage()
+    {
+        editingStageId = null;
+        editStageName = string.Empty;
+        editStageDescription = string.Empty;
+        editStageDuration = 10;
+    }
+
+    private async Task SaveEditStage()
+    {
+        if (meeting == null || editingStageId == null) return;
+        if (string.IsNullOrWhiteSpace(editStageName)) return;
+
+        var command = new UpdateAgendaStageCommand(
+            meeting.Id,
+            editingStageId.Value,
+            editStageName,
+            string.IsNullOrWhiteSpace(editStageDescription) ? null : editStageDescription,
+            editStageDuration
+        );
+
+        await Mediator.Send(command);
+        CancelEditStage();
         await LoadMeeting();
     }
 
