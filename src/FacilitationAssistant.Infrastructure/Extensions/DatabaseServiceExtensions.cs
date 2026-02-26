@@ -63,8 +63,14 @@ public static class DatabaseServiceExtensions
 
                 services.AddDbContextFactory<FacilitationDbContext>(options =>
                     options.UseSqlServer(connectionString, sqlOptions =>
+                    {
                         sqlOptions.MigrationsAssembly(
-                            typeof(DatabaseServiceExtensions).Assembly.GetName().Name)));
+                            typeof(DatabaseServiceExtensions).Assembly.GetName().Name);
+                        sqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(30),
+                            errorNumbersToAdd: null);
+                    }));
 
                 services.AddSingleton<IDatabaseInitializer, SqlServerDbInitializer>();
 
