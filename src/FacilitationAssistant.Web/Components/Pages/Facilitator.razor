@@ -91,6 +91,28 @@ else
             </div>
         }
 
+        @* Abandon Setup Confirmation Dialog *@
+        @if (showAbandonSetupDialog)
+        {
+            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" role="dialog" aria-labelledby="abandonSetupTitle" aria-modal="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h5 class="modal-title" id="abandonSetupTitle"><span aria-hidden="true">⚠️</span> Abandon Meeting Setup?</h5>
+                        </div>
+                        <div class="modal-body">
+                            <p>You are currently setting up a meeting. If you leave now, the meeting will remain in setup state but any unsaved changes may be lost.</p>
+                            <p class="mb-0">Are you sure you want to leave and create a new meeting?</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CancelAbandonSetup" autofocus>Stay on this page</button>
+                            <button type="button" class="btn btn-warning" @onclick="ConfirmAbandonSetup">Leave and create new meeting</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         @* Delete Note Confirmation Dialog *@
         @if (deletingNoteId.HasValue)
         {
@@ -920,6 +942,9 @@ else
     private bool showLinksPanel = false;
     private bool showEndMeetingDialog = false;
     private bool showSettings = false;
+    private bool showAbandonSetupDialog = false;
+    private string _pendingNavigationUri = string.Empty;
+    private IDisposable? _locationChangingRegistration;
 
     // Name prompt
     private bool showNamePrompt = true;
@@ -985,6 +1010,9 @@ else
             Navigation.NavigateTo($"/summary/{Token}");
             return;
         }
+
+        // Guard against accidentally navigating away during meeting setup
+        _locationChangingRegistration = Navigation.RegisterLocationChangingHandler(OnLocationChanging);
         
         // Setup SignalR connection
         _hubConnection = new HubConnectionBuilder()
@@ -1577,10 +1605,38 @@ else
     public async ValueTask DisposeAsync()
     {
         StopTickTimer();
+        _locationChangingRegistration?.Dispose();
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();
         }
+    }
+
+    private ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        if (meeting?.Status == MeetingStatus.Setup)
+        {
+            _pendingNavigationUri = context.TargetLocation;
+            context.PreventNavigation();
+            showAbandonSetupDialog = true;
+            StateHasChanged();
+        }
+        return ValueTask.CompletedTask;
+    }
+
+    private void ConfirmAbandonSetup()
+    {
+        showAbandonSetupDialog = false;
+        // Unregister so the next navigation is not intercepted
+        _locationChangingRegistration?.Dispose();
+        _locationChangingRegistration = null;
+        Navigation.NavigateTo(_pendingNavigationUri);
+    }
+
+    private void CancelAbandonSetup()
+    {
+        showAbandonSetupDialog = false;
+        _pendingNavigationUri = string.Empty;
     }
 
     private async Task AcknowledgeConcern(Guid concernId)
