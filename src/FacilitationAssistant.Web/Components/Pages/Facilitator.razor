@@ -585,9 +585,54 @@ else
                         <div class="card-body">
                             <p class="mb-1"><strong>Total Stages:</strong> @meeting.Stages.Count</p>
                             <p class="mb-1"><strong>Completed:</strong> @meeting.Stages.Count(s => s.Status == StageStatus.Completed)</p>
+                            <p class="mb-1"><strong>Participants:</strong> @meeting.AttendeeSessions.Count (@meeting.AttendeeSessions.Count(s => s.IsConnected) online)</p>
                             <p class="mb-1"><strong>Notes:</strong> @meeting.Notes.Count(n => n.IsPublic)</p>
                             <p class="mb-0"><strong>Concerns:</strong> @concerns.Count(c => !c.IsWithdrawn)</p>
                         </div>
+                    </div>
+
+                    @* Participants Panel *@
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                👥 Participants
+                                <span class="badge bg-success ms-1">@meeting.AttendeeSessions.Count(s => s.IsConnected) online</span>
+                                @if (meeting.AttendeeSessions.Count(s => !s.IsConnected) > 0)
+                                {
+                                    <span class="badge bg-secondary ms-1">@meeting.AttendeeSessions.Count(s => !s.IsConnected) offline</span>
+                                }
+                            </h6>
+                        </div>
+                        @if (meeting.AttendeeSessions.Any())
+                        {
+                            <div class="card-body p-2" style="max-height: 250px; overflow-y: auto;">
+                                <ul class="list-unstyled mb-0">
+                                    @foreach (var session in meeting.AttendeeSessions.OrderByDescending(s => s.IsConnected).ThenBy(s => s.DisplayName ?? ""))
+                                    {
+                                        <li class="d-flex align-items-center py-1 px-1 border-bottom">
+                                            <span class="me-2" style="font-size: 0.55rem; color: @(session.IsConnected ? "#28a745" : "#6c757d");" aria-hidden="true">⬤</span>
+                                            <span class="flex-grow-1 @(session.IsConnected ? "" : "text-muted")">
+                                                @if (!string.IsNullOrWhiteSpace(session.DisplayName))
+                                                {
+                                                    @session.DisplayName
+                                                }
+                                                else
+                                                {
+                                                    <em class="text-muted">Anonymous</em>
+                                                }
+                                            </span>
+                                            <small class="text-muted ms-1" title="Joined at @session.JoinedAt.ToString("HH:mm")">@session.JoinedAt.ToString("HH:mm")</small>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card-body">
+                                <p class="text-muted mb-0"><small>No participants have joined yet.</small></p>
+                            </div>
+                        }
                     </div>
 
                     @if (concerns.Any())

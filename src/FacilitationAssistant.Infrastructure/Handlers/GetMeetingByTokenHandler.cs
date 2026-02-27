@@ -60,6 +60,15 @@ public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, 
                 .OrderByDescending(n => n.CreatedAt)
                 .ToListAsync(cancellationToken);
 
+            // Load attendee sessions (facilitator only – for the participants panel)
+            if (request.IsFacilitator)
+            {
+                meeting.AttendeeSessions = await context.AttendeeSessions
+                    .Where(s => s.MeetingId == meeting.Id)
+                    .OrderBy(s => s.JoinedAt)
+                    .ToListAsync(cancellationToken);
+            }
+
             _logger.LogInformation("Meeting {MeetingId} loaded successfully with {StageCount} stages (IsFacilitator: {IsFacilitator})", 
                 meeting.Id, meeting.Stages.Count, request.IsFacilitator);
 
