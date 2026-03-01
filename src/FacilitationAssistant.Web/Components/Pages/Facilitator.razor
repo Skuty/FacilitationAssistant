@@ -185,7 +185,13 @@ else
 
                             @foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
                             {
-                                <div class="card mb-2">
+                                <div class="card mb-2 stage-drag-item @(dragOverIndex == stage.OrderIndex && draggedStageId != stage.Id ? "drag-over" : "") @(draggedStageId == stage.Id ? "drag-source" : "")"
+                                     draggable="true"
+                                     @ondragstart="() => HandleDragStart(stage.Id)"
+                                     @ondragover:preventDefault="true"
+                                     @ondragover="() => HandleDragOver(stage.OrderIndex)"
+                                     @ondrop="() => HandleDrop(stage.OrderIndex)"
+                                     @ondragend="HandleDragEnd">
                                     <div class="card-body">
                                         @if (editingStageId == stage.Id)
                                         {
@@ -207,6 +213,7 @@ else
                                         else
                                         {
                                             <div class="d-flex justify-content-between align-items-start">
+                                                <div class="drag-handle me-2" title="Drag to reorder">⠿</div>
                                                 <div class="flex-grow-1">
                                                     <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
                                                     <small class="text-muted">Duration: @stage.PlannedDurationMinutes min</small>
@@ -467,7 +474,13 @@ else
                         <div class="card-body">
                             @foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
                             {
-                                <div class="card mb-3 @GetStageClass(stage)">
+                                <div class="card mb-3 @GetStageClass(stage) @(stage.Status == StageStatus.NotStarted && dragOverIndex == stage.OrderIndex && draggedStageId != stage.Id ? "drag-over" : "") @(draggedStageId == stage.Id ? "drag-source" : "")"
+                                     draggable="@(stage.Status == StageStatus.NotStarted ? "true" : "false")"
+                                     @ondragstart="() => HandleDragStart(stage.Id)"
+                                     @ondragover:preventDefault="true"
+                                     @ondragover="() => HandleDragOver(stage.OrderIndex)"
+                                     @ondrop="() => HandleDrop(stage.OrderIndex)"
+                                     @ondragend="HandleDragEnd">
                                     <div class="card-body">
                                         @if (editingStageId == stage.Id)
                                         {
@@ -490,6 +503,10 @@ else
                                         else
                                         {
                                             <div class="d-flex justify-content-between align-items-start">
+                                                @if (stage.Status == StageStatus.NotStarted)
+                                                {
+                                                    <div class="drag-handle me-2" title="Drag to reorder">⠿</div>
+                                                }
                                                 <div class="flex-grow-1">
                                                     <h6>@(stage.OrderIndex + 1). @stage.Name</h6>
                                                     <div class="d-flex align-items-center gap-2">
@@ -1030,6 +1047,10 @@ else
     private string editStageDescription = string.Empty;
     private int editStageDuration = 10;
 
+    // Drag-and-drop stage reordering
+    private Guid? draggedStageId;
+    private int? dragOverIndex;
+
     // Note fields
     private string newNoteContent = string.Empty;
     private bool newNoteIsPublic = true;
@@ -1210,6 +1231,72 @@ else
         var command = new ReorderAgendaStagesCommand(meeting.Id, stageId, stage.OrderIndex + 1);
         await Mediator.Send(command);
         await LoadMeeting();
+    }
+
+    private void HandleDragStart(Guid stageId)
+    {
+        draggedStageId = stageId;
+        dragOverIndex = null;
+    }
+
+    private void HandleDragOver(int targetOrderIndex)
+    {
+        dragOverIndex = targetOrderIndex;
+    }
+
+    private async Task HandleDrop(int targetOrderIndex)
+    {
+        if (draggedStageId == null || meeting == null)
+        {
+            draggedStageId = null;
+            dragOverIndex = null;
+            return;
+        }
+
+        var draggedStage = meeting.Stages.FirstOrDefault(s => s.Id == draggedStageId.Value);
+        if (draggedStage == null || draggedStage.OrderIndex == targetOrderIndex)
+        {
+            draggedStageId = null;
+            dragOverIndex = null;
+            return;
+        }
+
+        // For active meetings: only NotStarted stages may be moved, and only
+        // into positions that come after all already-started (Active/Completed) stages.
+        if (meeting.Status == MeetingStatus.Active)
+        {
+            if (draggedStage.Status != StageStatus.NotStarted)
+            {
+                draggedStageId = null;
+                dragOverIndex = null;
+                return;
+            }
+
+            var maxStartedIndex = meeting.Stages
+                .Where(s => s.Status != StageStatus.NotStarted)
+                .Select(s => s.OrderIndex)
+                .DefaultIfEmpty(-1)
+                .Max();
+
+            if (targetOrderIndex <= maxStartedIndex)
+            {
+                draggedStageId = null;
+                dragOverIndex = null;
+                return;
+            }
+        }
+
+        var command = new ReorderAgendaStagesCommand(meeting.Id, draggedStageId.Value, targetOrderIndex);
+        await Mediator.Send(command);
+        await LoadMeeting();
+        draggedStageId = null;
+        dragOverIndex = null;
+    }
+
+    private void HandleDragEnd()
+    {
+        draggedStageId = null;
+        dragOverIndex = null;
     }
 
     private async Task DeleteStage(Guid stageId)

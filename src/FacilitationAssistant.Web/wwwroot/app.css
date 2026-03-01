@@ -342,3 +342,40 @@ textarea:focus-visible {
     clip: auto;
     white-space: normal;
 }
+
+/* Drag-and-drop stage reordering */
+.stage-drag-item {
+    cursor: grab;
+    user-select: none;
+}
+
+.stage-drag-item:active {
+    cursor: grabbing;
+}
+
+.drag-source {
+    opacity: 0.45;
+    border-style: dashed !important;
+}
+
+.drag-over {
+    border: 2px dashed #1b6ec2 !important;
+    background-color: #e8f4fd !important;
+    transform: scale(1.01);
+    transition: transform 0.1s ease;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #adb5bd;
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.drag-handle:hover {
+    color: #495057;
+}
