@@ -528,6 +528,17 @@ else
                                                     {
                                                         <button class="btn btn-outline-primary btn-sm" @onclick="() => StartEditStage(stage)" title="Edit Stage">✏️</button>
                                                     }
+                                                    @if (stage.Status == StageStatus.NotStarted)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-secondary"
+                                                                @onclick="() => MoveStageUp(stage.Id)"
+                                                                disabled="@(stage.OrderIndex == 0 || meeting.Stages.Any(s => s.OrderIndex == stage.OrderIndex - 1 && s.Status != StageStatus.NotStarted))"
+                                                                title="Move Up">▲</button>
+                                                        <button class="btn btn-sm btn-outline-secondary"
+                                                                @onclick="() => MoveStageDown(stage.Id)"
+                                                                disabled="@(stage.OrderIndex >= meeting.Stages.Count - 1)"
+                                                                title="Move Down">▼</button>
+                                                    }
                                                     @if (stage.Status == StageStatus.NotStarted || stage.Status == StageStatus.Completed)
                                                     {
                                                         <button class="btn btn-success btn-sm" @onclick="() => StartStage(stage.Id)">▶️ Start</button>

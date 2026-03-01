@@ -25,7 +25,7 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
         var meeting = await context.Meetings
             .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
 
-        if (meeting == null || meeting.Status != MeetingStatus.Setup)
+        if (meeting == null || (meeting.Status != MeetingStatus.Setup && meeting.Status != MeetingStatus.Active))
         {
             return false;
         }
@@ -36,6 +36,25 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
         if (stageToMove == null)
         {
             return false;
+        }
+
+        // For active meetings, only allow reordering NotStarted stages,
+        // and only into positions that remain after all already-started stages.
+        if (meeting.Status == MeetingStatus.Active)
+        {
+            if (stageToMove.Status != StageStatus.NotStarted)
+            {
+                return false;
+            }
+
+            var maxStartedIndex = await context.AgendaStages
+                .Where(s => s.MeetingId == request.MeetingId && s.Status != StageStatus.NotStarted)
+                .MaxAsync(s => (int?)s.OrderIndex, cancellationToken) ?? -1;
+
+            if (request.NewOrderIndex <= maxStartedIndex)
+            {
+                return false;
+            }
         }
 
         var currentIndex = stageToMove.OrderIndex;
