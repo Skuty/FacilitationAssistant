@@ -18,6 +18,7 @@ public class Meeting
     public List<AttendeeSession> AttendeeSessions { get; set; } = new();
     public List<Question> Questions { get; set; } = new();
     public List<Message> Messages { get; set; } = new();
+    public List<StageProposal> StageProposals { get; set; } = new();
 }
 
 public enum MeetingStatus

@@ -216,6 +216,28 @@ public static class SqlServerModelConfiguration
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ── StageProposal ─────────────────────────────────────────────────────
+        modelBuilder.Entity<StageProposal>(entity =>
+        {
+            entity.ToTable("StageProposals");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProposerName).HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.RejectionReason).HasMaxLength(500);
+
+            entity.HasIndex(e => e.MeetingId);
+            entity.HasIndex(e => new { e.MeetingId, e.Status });
+
+            // Back-reference to the Meeting using ClientSetNull to avoid cascade conflicts
+            entity.HasOne(p => p.Meeting)
+                  .WithMany(m => m.StageProposals)
+                  .HasForeignKey(p => p.MeetingId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ── MessageOption ─────────────────────────────────────────────────────
         modelBuilder.Entity<MessageOption>(entity =>
         {

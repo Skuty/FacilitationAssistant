@@ -29,6 +29,7 @@ public static class CosmosModelConfiguration
             entity.Ignore(m => m.AttendeeSessions);
             entity.Ignore(m => m.Questions);
             entity.Ignore(m => m.Messages);
+            entity.Ignore(m => m.StageProposals);
         });
 
         // AgendaStage configuration
@@ -168,6 +169,21 @@ public static class CosmosModelConfiguration
             entity.Property(e => e.FreeText).HasMaxLength(500);
 
             entity.Ignore(e => e.Message);
+        });
+
+        // StageProposal configuration
+        modelBuilder.Entity<StageProposal>(entity =>
+        {
+            entity.ToContainer("StageProposals");
+            entity.HasNoDiscriminator();
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProposerName).HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.RejectionReason).HasMaxLength(500);
+
+            entity.Ignore(e => e.Meeting);
         });
     }
 }

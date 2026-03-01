@@ -34,6 +34,7 @@ public class FacilitationDbContext : DbContext
     public DbSet<Message> Messages { get; set; }
     public DbSet<MessageOption> MessageOptions { get; set; }
     public DbSet<MessageResponse> MessageResponses { get; set; }
+    public DbSet<StageProposal> StageProposals { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -67,6 +67,11 @@ public class GetMeetingByTokenHandler : IRequestHandler<GetMeetingByTokenQuery, 
                     .Where(s => s.MeetingId == meeting.Id)
                     .OrderBy(s => s.JoinedAt)
                     .ToListAsync(cancellationToken);
+
+                meeting.StageProposals = await context.StageProposals
+                    .Where(p => p.MeetingId == meeting.Id)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToListAsync(cancellationToken);
             }
 
             _logger.LogInformation("Meeting {MeetingId} loaded successfully with {StageCount} stages (IsFacilitator: {IsFacilitator})", 

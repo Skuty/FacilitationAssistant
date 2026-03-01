@@ -288,6 +288,51 @@ else
                     </div>
                 </div>
 
+                @if (meeting.Status == MeetingStatus.Active)
+                {
+                    <div class="card mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">💡 Stage Proposals</h6>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-info btn-sm w-100"
+                                    @onclick="OpenProposeStageModal"
+                                    aria-label="Propose a new agenda stage">
+                                💡 Propose New Stage
+                            </button>
+                            @{
+                                var myProposals = myStageProposals;
+                            }
+                            @if (myProposals.Any())
+                            {
+                                <div class="mt-2">
+                                    @foreach (var proposal in myProposals.OrderByDescending(p => p.CreatedAt))
+                                    {
+                                        <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
+                                            <div>
+                                                <small class="fw-bold d-block">@proposal.Name</small>
+                                                <small class="text-muted">@proposal.PlannedDurationMinutes min</small>
+                                            </div>
+                                            @if (proposal.Status == StageProposalStatus.Pending)
+                                            {
+                                                <span class="badge bg-secondary">Pending</span>
+                                            }
+                                            else if (proposal.Status == StageProposalStatus.Accepted)
+                                            {
+                                                <span class="badge bg-success">✓ Accepted</span>
+                                            }
+                                            else if (proposal.Status == StageProposalStatus.Rejected)
+                                            {
+                                                <span class="badge bg-danger" title="@proposal.RejectionReason">✗ Rejected</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 <div class="card">
                     <div class="card-header">
                         <h6 class="mb-0">📊 Meeting Progress</h6>
@@ -745,6 +790,76 @@ else
         </div>
     }
 
+    @* Propose Stage Modal *@
+    @if (showProposeStageModal)
+    {
+        <div class="modal show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="proposeStageModalTitle" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white border-0">
+                        <h5 class="modal-title" id="proposeStageModalTitle">💡 Propose New Stage</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseProposeStageModal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">
+                            <small>Suggest a new agenda topic for the facilitator to review and add to the meeting.</small>
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Stage Name <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   class="form-control @(!string.IsNullOrEmpty(proposeStageError) && string.IsNullOrWhiteSpace(proposeStageName) ? "is-invalid" : "")"
+                                   placeholder="e.g. Open Discussion"
+                                   @bind="proposeStageName"
+                                   maxlength="100" />
+                            <div class="form-text">@proposeStageName.Length / 100 characters</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description <span class="text-muted">(optional)</span></label>
+                            <textarea class="form-control"
+                                      placeholder="What should be discussed in this stage?"
+                                      @bind="proposeStageDescription"
+                                      rows="2"
+                                      maxlength="500"></textarea>
+                            <div class="form-text">@(proposeStageDescription?.Length ?? 0) / 500 characters</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Planned Duration (minutes)</label>
+                            <input type="number"
+                                   class="form-control"
+                                   @bind="proposeStageDuration"
+                                   min="1"
+                                   max="240" />
+                        </div>
+                        @if (!string.IsNullOrEmpty(proposeStageError))
+                        {
+                            <div class="alert alert-danger py-2 mb-0">@proposeStageError</div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseProposeStageModal">Cancel</button>
+                        <button type="button"
+                                class="btn btn-info text-white"
+                                @onclick="SubmitStageProposal"
+                                disabled="@isSubmittingProposal">
+                            @(isSubmittingProposal ? "Submitting..." : "💡 Submit Proposal")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Propose Stage Confirmation Toast *@
+    @if (showProposeStageConfirmation)
+    {
+        <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <strong>💡 Proposal submitted</strong> - The facilitator will review your stage suggestion.
+                <button type="button" class="btn-close" @onclick="() => showProposeStageConfirmation = false"></button>
+            </div>
+        </div>
+    }
+
     @* Attendee Messages *@
     @if (meeting != null)
     {
@@ -779,6 +894,17 @@ else
     
     // Concerns
     private List<Concern> concerns = new();
+
+    // Stage Proposals
+    private List<StageProposal> stageProposals = new();
+    private List<StageProposal> myStageProposals => stageProposals.Where(p => p.SessionId == sessionId).ToList();
+    private bool showProposeStageModal = false;
+    private string proposeStageName = string.Empty;
+    private string? proposeStageDescription = null;
+    private int proposeStageDuration = 10;
+    private string? proposeStageError = null;
+    private bool isSubmittingProposal = false;
+    private bool showProposeStageConfirmation = false;
 
     // UI fields
     private string newNoteContent = string.Empty;
@@ -833,6 +959,7 @@ else
             await LoadMeeting();
             await LoadActiveQuestions();
             await LoadConcerns();
+            await LoadStageProposals();
             
             // Refresh messages
             if (attendeeMessages != null)
@@ -874,6 +1001,14 @@ else
     {
         var query = new GetMeetingByTokenQuery(Token, false);
         meeting = await Mediator.Send(query);
+    }
+
+    private async Task LoadStageProposals()
+    {
+        if (meeting == null) return;
+        var query = new GetStageProposalsBySessionQuery(meeting.Id, sessionId);
+        var results = await Mediator.Send(query);
+        stageProposals = results.ToList();
     }
 
     private async Task LoadActiveQuestions()
@@ -1225,6 +1360,66 @@ else
         var command = new WithdrawConcernCommand(concernId, sessionId);
         await Mediator.Send(command);
         await LoadConcerns();
+    }
+
+    private void OpenProposeStageModal()
+    {
+        proposeStageName = string.Empty;
+        proposeStageDescription = null;
+        proposeStageDuration = 10;
+        proposeStageError = null;
+        showProposeStageModal = true;
+    }
+
+    private void CloseProposeStageModal()
+    {
+        showProposeStageModal = false;
+        proposeStageError = null;
+    }
+
+    private async Task SubmitStageProposal()
+    {
+        if (meeting == null || string.IsNullOrWhiteSpace(proposeStageName))
+        {
+            proposeStageError = "Stage name is required.";
+            return;
+        }
+        if (proposeStageDuration < 1 || proposeStageDuration > 240)
+        {
+            proposeStageError = "Duration must be between 1 and 240 minutes.";
+            return;
+        }
+
+        isSubmittingProposal = true;
+        proposeStageError = null;
+        try
+        {
+            var command = new ProposeStageCommand(
+                meeting.Id,
+                sessionId,
+                userIdentifier,
+                proposeStageName.Trim(),
+                string.IsNullOrWhiteSpace(proposeStageDescription) ? null : proposeStageDescription.Trim(),
+                proposeStageDuration
+            );
+            await Mediator.Send(command);
+            await LoadStageProposals();
+            CloseProposeStageModal();
+            showProposeStageConfirmation = true;
+            _ = Task.Delay(4000).ContinueWith(_ =>
+            {
+                showProposeStageConfirmation = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+        catch (Exception ex)
+        {
+            proposeStageError = ex.Message;
+        }
+        finally
+        {
+            isSubmittingProposal = false;
+        }
     }
 
     private void StartTickTimer()
