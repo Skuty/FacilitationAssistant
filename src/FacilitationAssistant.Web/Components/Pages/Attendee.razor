@@ -62,14 +62,39 @@
 }
 else if (meeting.Status == MeetingStatus.Setup)
 {
-    <div class="container mt-5">
-        <div class="text-center">
+    <div class="container mt-5" style="max-width: 600px;">
+        <div class="text-center mb-4">
             <h2>⏳ Meeting Not Started Yet</h2>
             <p class="lead">The facilitator is setting up the meeting. Please wait...</p>
             <div class="spinner-border text-primary mt-3" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
         </div>
+        @if (meeting.Stages.Count > 0)
+        {
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><span aria-hidden="true">📋</span> Agenda</h5>
+                </div>
+                <ul class="list-group list-group-flush" aria-label="Meeting agenda">
+                    @foreach (var stage in meeting.Stages.OrderBy(s => s.OrderIndex))
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <span class="text-muted me-2">@(stage.OrderIndex + 1).</span>
+                                <strong>@stage.Name</strong>
+                            </span>
+                            <span class="badge bg-secondary rounded-pill" aria-label="@stage.PlannedDurationMinutes minutes">
+                                @stage.PlannedDurationMinutes min
+                            </span>
+                        </li>
+                    }
+                </ul>
+                <div class="card-footer text-muted small text-end">
+                    Total: @meeting.Stages.Sum(s => s.PlannedDurationMinutes) min
+                </div>
+            </div>
+        }
     </div>
 }
 else
