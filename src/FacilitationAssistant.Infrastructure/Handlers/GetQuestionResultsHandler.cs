@@ -65,7 +65,7 @@ public class GetQuestionResultsHandler : IRequestHandler<GetQuestionResultsQuery
         {
             freeTextAnswers = responses
                 .Where(r => r.Status == QuestionResponseStatus.Submitted && !string.IsNullOrWhiteSpace(r.AnswerText))
-                .Select(r => new FreeTextAnswerDto(r.AnswerText!, r.AuthorName))
+                .Select(r => new FreeTextAnswerDto(r.AnswerText!, r.AuthorName, r.SubmittedAt))
                 .ToList();
         }
         else if (question.AnswerType == QuestionAnswerType.Scale)

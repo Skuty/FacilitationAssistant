@@ -278,6 +278,7 @@ else
                                                                         {
                                                                             <span class="badge bg-secondary ms-2">@answer.AuthorName</span>
                                                                         }
+                                                                        <span class="badge bg-light text-muted ms-1" title="@answer.SubmittedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC">@answer.SubmittedAt.ToString("HH:mm")</span>
                                                                     </li>
                                                                 }
                                                             </ul>
@@ -668,7 +669,7 @@ else
                         foreach (var ans in res.FreeTextAnswers)
                         {
                             var author = !string.IsNullOrEmpty(ans.AuthorName) ? $" _{ans.AuthorName}_" : "";
-                            sb.AppendLine($"- {ans.Answer}{author}");
+                            sb.AppendLine($"- {ans.Answer}{author} _{ans.SubmittedAt:HH:mm}_");
                         }
                     }
                 }

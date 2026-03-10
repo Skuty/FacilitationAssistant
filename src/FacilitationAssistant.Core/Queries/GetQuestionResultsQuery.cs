@@ -15,7 +15,8 @@ public record QuestionResultsDto(
 
 public record FreeTextAnswerDto(
     string Answer,
-    string? AuthorName
+    string? AuthorName,
+    DateTime SubmittedAt
 );
 
 public record ScaleResultsDto(
