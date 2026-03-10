@@ -548,6 +548,7 @@ else
                         {
                             <textarea class="form-control" 
                                       @bind="freeTextAnswer" 
+                                      @bind:event="oninput"
                                       rows="4" 
                                       maxlength="1000" 
                                       placeholder="Type your answer..."></textarea>

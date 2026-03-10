@@ -47,7 +47,7 @@
                         else if (currentMessage.ResponseType == MessageResponseType.FreeText)
                         {
                             <hr />
-                            <textarea class="form-control mb-2" rows="3" maxlength="500" @bind="freeTextResponse" placeholder="Enter your response (max 500 characters)"></textarea>
+                            <textarea class="form-control mb-2" rows="3" maxlength="500" @bind="freeTextResponse" @bind:event="oninput" placeholder="Enter your response (max 500 characters)"></textarea>
                             <button class="btn btn-primary" @onclick="RespondWithFreeText" disabled="@string.IsNullOrWhiteSpace(freeTextResponse)">Submit</button>
                         }
                     }
