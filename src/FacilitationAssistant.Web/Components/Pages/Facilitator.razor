@@ -252,6 +252,13 @@ else
                                 </div>
                             }
 
+                            @if (meeting.Stages.Any())
+                            {
+                                <div class="d-flex justify-content-end mt-1 mb-2">
+                                    <small class="text-muted">Total planned time: <strong>@meeting.Stages.Sum(s => s.PlannedDurationMinutes) min</strong></small>
+                                </div>
+                            }
+
                             <div class="card mt-3">
                                 <div class="card-body">
                                     <h6>Add New Stage</h6>
