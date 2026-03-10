@@ -17,5 +17,6 @@ public record CreateQuestionCommand(
     string? ScaleMaxLabel,
     int? MaxSelectableOptions,
     bool TriggerImmediately,
-    bool AllowAnonymousAnswers = false
+    bool AllowAnonymousAnswers = false,
+    string? AuthorName = null
 ) : IRequest<Guid>;

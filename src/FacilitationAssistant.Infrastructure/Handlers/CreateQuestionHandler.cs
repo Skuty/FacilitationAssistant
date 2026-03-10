@@ -71,6 +71,8 @@ public class CreateQuestionHandler : IRequestHandler<CreateQuestionCommand, Guid
             ScaleMaxLabel = string.IsNullOrWhiteSpace(request.ScaleMaxLabel) ? null : request.ScaleMaxLabel,
             MaxSelectableOptions = request.MaxSelectableOptions,
             AllowAnonymousAnswers = request.AllowAnonymousAnswers,
+            AuthorName = string.IsNullOrWhiteSpace(request.AuthorName) ? null : request.AuthorName,
+            IsAdHoc = meeting.Status != MeetingStatus.Setup,
             Status = request.TriggerImmediately ? QuestionStatus.Active : QuestionStatus.Draft,
             CreatedAt = DateTime.UtcNow,
             TriggeredAt = request.TriggerImmediately ? DateTime.UtcNow : null

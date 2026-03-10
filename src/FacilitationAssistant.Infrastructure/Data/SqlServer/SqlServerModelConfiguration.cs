@@ -140,6 +140,7 @@ public static class SqlServerModelConfiguration
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.Text).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.AuthorName).HasMaxLength(50);
             entity.Property(e => e.ScaleMinLabel).HasMaxLength(100);
             entity.Property(e => e.ScaleMaxLabel).HasMaxLength(100);
 

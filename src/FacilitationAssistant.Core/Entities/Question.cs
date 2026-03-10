@@ -16,6 +16,9 @@ public class Question
     public bool AllowAnonymousAnswers { get; set; } = false;
     public QuestionStatus Status { get; set; } = QuestionStatus.Draft;
     
+    public string? AuthorName { get; set; }
+    public bool IsAdHoc { get; set; } = false;
+
     public DateTime CreatedAt { get; set; }
     public DateTime? TriggeredAt { get; set; }
     public DateTime? ClosedAt { get; set; }

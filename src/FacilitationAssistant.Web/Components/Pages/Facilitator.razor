@@ -294,7 +294,21 @@ else
                                                     <span class="badge bg-secondary">@question.AnswerType</span>
                                                     <span class="badge bg-info">@question.TriggerType</span>
                                                     <span class="badge @GetQuestionStatusBadge(question.Status)">@question.Status</span>
+                                                    @if (question.IsAdHoc)
+                                                    {
+                                                        <span class="badge bg-warning text-dark">Ad-hoc</span>
+                                                    }
                                                 </div>
+                                                @if (question.IsAdHoc)
+                                                {
+                                                    <div class="mt-1">
+                                                        <small class="text-muted">Created by <strong>@(question.AuthorName ?? "Facilitator")</strong> at @question.CreatedAt.ToLocalTime().ToString("HH:mm")</small>
+                                                        @if (question.TriggeredAt.HasValue)
+                                                        {
+                                                            <small class="text-muted ms-2">· Triggered at @question.TriggeredAt.Value.ToLocalTime().ToString("HH:mm")</small>
+                                                        }
+                                                    </div>
+                                                }
                                                 @if (question.Options.Any())
                                                 {
                                                     <div class="mt-2">
@@ -961,7 +975,21 @@ else
                                                     <div class="d-flex gap-2 flex-wrap">
                                                         <span class="badge bg-secondary">@question.AnswerType</span>
                                                         <span class="badge @GetQuestionStatusBadge(question.Status)">@question.Status</span>
+                                                        @if (question.IsAdHoc)
+                                                        {
+                                                            <span class="badge bg-warning text-dark">Ad-hoc</span>
+                                                        }
                                                     </div>
+                                                    @if (question.IsAdHoc)
+                                                    {
+                                                        <div class="mt-1">
+                                                            <small class="text-muted">Created by <strong>@(question.AuthorName ?? "Facilitator")</strong> at @question.CreatedAt.ToLocalTime().ToString("HH:mm")</small>
+                                                            @if (question.TriggeredAt.HasValue)
+                                                            {
+                                                                <small class="text-muted ms-2">· Triggered at @question.TriggeredAt.Value.ToLocalTime().ToString("HH:mm")</small>
+                                                            }
+                                                        </div>
+                                                    }
                                                 </div>
                                                 <div class="btn-group">
                                                     @if (question.Status == QuestionStatus.Draft)
@@ -1729,7 +1757,8 @@ else
                 newQuestionType == QuestionAnswerType.Scale ? newScaleMaxLabel : null,
                 null, // MaxSelectableOptions - not implemented in basic version
                 false, // TriggerImmediately
-                newQuestionAllowAnonymousAnswers
+                newQuestionAllowAnonymousAnswers,
+                userIdentifier
             );
 
             await Mediator.Send(command);
