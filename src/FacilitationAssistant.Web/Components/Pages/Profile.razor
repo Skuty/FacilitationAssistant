@@ -1,0 +1,120 @@
+@page "/profile"
+@rendermode InteractiveServer
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Profile</PageTitle>
+
+<div class="container" style="max-width: 600px; margin-top: 2rem;">
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">👤 Profile</h4>
+            <a href="/" class="btn btn-outline-secondary btn-sm">← Back</a>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Your display name is shown alongside your contributions in meetings (notes, concerns, poll answers).
+                It is stored only in your browser's local storage.
+            </p>
+
+            <div class="mb-3">
+                <label for="profileNameInput" class="form-label fw-bold">Display Name</label>
+                <input id="profileNameInput"
+                       type="text"
+                       class="form-control @(!string.IsNullOrEmpty(validationError) ? "is-invalid" : "")"
+                       placeholder="e.g. Michael"
+                       @bind="nameInput"
+                       @bind:event="oninput"
+                       @onkeydown="OnKeyDown"
+                       maxlength="30"
+                       disabled="@isLoading" />
+                @if (!string.IsNullOrEmpty(validationError))
+                {
+                    <div class="invalid-feedback d-block">@validationError</div>
+                }
+                <div class="form-text">@nameInput.Trim().Length / 30 characters</div>
+            </div>
+
+            @if (showSuccess)
+            {
+                <div class="alert alert-success py-2 mb-3" role="status">
+                    ✅ Name saved successfully!
+                </div>
+            }
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" @onclick="SaveName" disabled="@isLoading">
+                    💾 Save
+                </button>
+                @if (hasSavedName)
+                {
+                    <button class="btn btn-outline-danger" @onclick="ClearName" disabled="@isLoading">
+                        🗑️ Clear saved name
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string nameInput = string.Empty;
+    private string validationError = string.Empty;
+    private bool showSuccess = false;
+    private bool isLoading = true;
+    private bool hasSavedName = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var saved = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "author_name");
+            if (!string.IsNullOrEmpty(saved))
+            {
+                nameInput = saved;
+                hasSavedName = true;
+            }
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveName()
+    {
+        var trimmed = nameInput.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            validationError = "Please enter a name.";
+            return;
+        }
+        if (trimmed.Length < 2)
+        {
+            validationError = "Name must be at least 2 characters.";
+            return;
+        }
+
+        validationError = string.Empty;
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "author_name", trimmed);
+        nameInput = trimmed;
+        hasSavedName = true;
+        showSuccess = true;
+        StateHasChanged();
+
+        await Task.Delay(2500);
+        showSuccess = false;
+        StateHasChanged();
+    }
+
+    private async Task ClearName()
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "author_name");
+        nameInput = string.Empty;
+        hasSavedName = false;
+        validationError = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SaveName();
+    }
+}

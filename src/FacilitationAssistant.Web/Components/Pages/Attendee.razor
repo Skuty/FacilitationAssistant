@@ -963,6 +963,19 @@ else
     private bool showConfirmation = false;
     private bool showResults = false;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && showNamePrompt)
+        {
+            var saved = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "author_name");
+            if (!string.IsNullOrEmpty(saved))
+            {
+                nameInput = saved;
+                StateHasChanged();
+            }
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadMeeting();
@@ -1570,6 +1583,9 @@ else
         var suffix = Random.Shared.Next(1000, 10000);
         userIdentifier = $"{trimmed}-{suffix}";
         showNamePrompt = false;
+
+        // Persist the base name to localStorage for future meetings
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "author_name", trimmed);
 
         // Push display name to server so facilitator sees it in participant list
         if (meeting != null && _hubConnection != null)
