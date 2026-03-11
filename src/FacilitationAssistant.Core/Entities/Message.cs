@@ -9,6 +9,7 @@ public class Message
     public string Text { get; set; } = string.Empty;
     public MessageType Type { get; set; }
     public MessageResponseType? ResponseType { get; set; }
+    public string? AuthorName { get; set; }
     
     public DateTime CreatedAt { get; set; }
     public DateTime? ClosedAt { get; set; }

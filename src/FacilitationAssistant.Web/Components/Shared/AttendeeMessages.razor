@@ -17,7 +17,13 @@
                 </div>
                 <div class="modal-body">
                     <p class="mb-3">@currentMessage.Text</p>
-                    <small class="text-muted">Sent at @currentMessage.CreatedAt.ToString("HH:mm")</small>
+                    <small class="text-muted">
+                        Sent at @currentMessage.CreatedAt.ToString("HH:mm")
+                        @if (!string.IsNullOrEmpty(currentMessage.AuthorName))
+                        {
+                            <span> by <strong>@currentMessage.AuthorName</strong></span>
+                        }
+                    </small>
 
                     @if (currentMessage.Type == MessageType.Question && !currentMessage.IsClosed && !hasResponded)
                     {

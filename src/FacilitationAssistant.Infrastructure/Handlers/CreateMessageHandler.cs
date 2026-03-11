@@ -57,6 +57,7 @@ public class CreateMessageHandler : IRequestHandler<CreateMessageCommand, Guid>
             Text = request.Text,
             Type = request.Type,
             ResponseType = request.ResponseType,
+            AuthorName = request.AuthorName,
             CreatedAt = DateTime.UtcNow,
             IsClosed = false
         };

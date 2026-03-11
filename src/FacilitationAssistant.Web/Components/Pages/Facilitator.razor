@@ -1109,7 +1109,7 @@ else
                     </div>
 
                     @* Message Management *@
-                    <MessageManager MeetingId="@meeting.Id" OnMessageSent="RefreshMessages" @ref="messageManager" />
+                    <MessageManager MeetingId="@meeting.Id" OnMessageSent="RefreshMessages" AuthorName="@userIdentifier" @ref="messageManager" />
                 </div>
             </div>
         }

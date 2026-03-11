@@ -77,6 +77,10 @@
                                         @(message.Type == MessageType.Announcement ? "📢 Announcement" : "❓ Question")
                                     </span>
                                     <small class="text-muted">@message.CreatedAt.ToString("HH:mm")</small>
+                                    @if (!string.IsNullOrEmpty(message.AuthorName))
+                                    {
+                                        <span class="badge bg-secondary ms-2">👤 @message.AuthorName</span>
+                                    }
                                     @if (message.IsClosed)
                                     {
                                         <span class="badge bg-secondary ms-2">Closed</span>
@@ -177,7 +181,13 @@
                 </div>
                 <div class="modal-body">
                     <p class="fw-bold">@selectedMessageDetail.Text</p>
-                    <small class="text-muted">Sent at @selectedMessageDetail.CreatedAt.ToString("HH:mm") | @(selectedMessageDetail.IsClosed ? "Closed" : "Open")</small>
+                    <small class="text-muted">Sent at @selectedMessageDetail.CreatedAt.ToString("HH:mm")
+                        @if (!string.IsNullOrEmpty(selectedMessageDetail.AuthorName))
+                        {
+                            <span> by <strong>@selectedMessageDetail.AuthorName</strong></span>
+                        }
+                        @(" | " + (selectedMessageDetail.IsClosed ? "Closed" : "Open"))
+                    </small>
 
                     @if (selectedMessageDetail.Summary != null)
                     {
@@ -245,6 +255,7 @@
 @code {
     [Parameter] public Guid MeetingId { get; set; }
     [Parameter] public EventCallback OnMessageSent { get; set; }
+    [Parameter] public string? AuthorName { get; set; }
     
     private List<MessageDto> messages = new();
     private Dictionary<Guid, MessageDetailDto> messageDetailsMap = new();
@@ -331,7 +342,8 @@
                 messageText,
                 messageType,
                 responseType,
-                validOptions
+                validOptions,
+                AuthorName
             ));
 
             showComposer = false;

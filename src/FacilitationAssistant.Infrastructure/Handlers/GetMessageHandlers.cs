@@ -44,7 +44,8 @@ public class GetMessagesByMeetingHandler : IRequestHandler<GetMessagesByMeetingQ
             m.CreatedAt,
             m.IsClosed,
             responseCounts.ContainsKey(m.Id) ? responseCounts[m.Id] : 0,
-            null // UserHasResponded is null for this query (no session context)
+            null, // UserHasResponded is null for this query (no session context)
+            m.AuthorName
         )).ToList();
     }
 }
@@ -106,7 +107,8 @@ public class GetMessageByIdHandler : IRequestHandler<GetMessageByIdQuery, Messag
             message.IsClosed,
             optionDtos,
             responseDtos,
-            summary
+            summary,
+            message.AuthorName
         );
     }
 
@@ -195,7 +197,8 @@ public class GetPendingMessagesHandler : IRequestHandler<GetPendingMessagesQuery
             m.CreatedAt,
             m.IsClosed,
             responseCounts.ContainsKey(m.Id) ? responseCounts[m.Id] : 0,
-            userResponses.Contains(m.Id)
+            userResponses.Contains(m.Id),
+            m.AuthorName
         )).ToList();
     }
 }

@@ -18,7 +18,8 @@ public record MessageDto(
     DateTime CreatedAt,
     bool IsClosed,
     int ResponseCount,
-    bool? UserHasResponded
+    bool? UserHasResponded,
+    string? AuthorName = null
 );
 
 public record MessageDetailDto(
@@ -30,7 +31,8 @@ public record MessageDetailDto(
     bool IsClosed,
     List<MessageOptionDto> Options,
     List<MessageResponseDto> Responses,
-    ResponseSummaryDto? Summary
+    ResponseSummaryDto? Summary,
+    string? AuthorName = null
 );
 
 public record MessageOptionDto(

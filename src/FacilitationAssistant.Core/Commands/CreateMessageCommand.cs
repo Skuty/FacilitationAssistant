@@ -8,5 +8,6 @@ public record CreateMessageCommand(
     string Text,
     MessageType Type,
     MessageResponseType? ResponseType,
-    List<string>? PredefinedOptions
+    List<string>? PredefinedOptions,
+    string? AuthorName = null
 ) : IRequest<Guid>;
