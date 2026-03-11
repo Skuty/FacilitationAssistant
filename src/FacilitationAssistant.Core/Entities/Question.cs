@@ -48,6 +48,7 @@ public enum QuestionTriggerType
 {
     MeetingStart,
     StageStart,
+    StageEnd,
     Manual
 }
 

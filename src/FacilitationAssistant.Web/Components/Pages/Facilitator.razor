@@ -389,10 +389,11 @@ else
                                             <option value="@QuestionTriggerType.Manual">Manual (trigger when ready)</option>
                                             <option value="@QuestionTriggerType.MeetingStart">Automatically at meeting start</option>
                                             <option value="@QuestionTriggerType.StageStart">Automatically at stage start</option>
+                                            <option value="@QuestionTriggerType.StageEnd">Automatically at stage end</option>
                                         </select>
                                     </div>
 
-                                    @if (newQuestionTriggerType == QuestionTriggerType.StageStart && meeting.Stages.Any())
+                                    @if ((newQuestionTriggerType == QuestionTriggerType.StageStart || newQuestionTriggerType == QuestionTriggerType.StageEnd) && meeting.Stages.Any())
                                     {
                                         <div class="mb-2">
                                             <label class="form-label">Associated Stage</label>
@@ -1732,7 +1733,7 @@ else
             }
         }
 
-        if (newQuestionTriggerType == QuestionTriggerType.StageStart && string.IsNullOrWhiteSpace(newQuestionAssociatedStageId))
+        if ((newQuestionTriggerType == QuestionTriggerType.StageStart || newQuestionTriggerType == QuestionTriggerType.StageEnd) && string.IsNullOrWhiteSpace(newQuestionAssociatedStageId))
         {
             questionError = "Please select a stage for stage-triggered questions.";
             return;
@@ -1745,7 +1746,7 @@ else
                 : null;
 
             Guid? associatedStageId = null;
-            if (newQuestionTriggerType == QuestionTriggerType.StageStart && !string.IsNullOrWhiteSpace(newQuestionAssociatedStageId))
+            if ((newQuestionTriggerType == QuestionTriggerType.StageStart || newQuestionTriggerType == QuestionTriggerType.StageEnd) && !string.IsNullOrWhiteSpace(newQuestionAssociatedStageId))
             {
                 associatedStageId = Guid.Parse(newQuestionAssociatedStageId);
             }

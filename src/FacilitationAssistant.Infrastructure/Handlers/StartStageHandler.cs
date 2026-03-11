@@ -41,6 +41,20 @@ public class StartStageHandler : IRequestHandler<StartStageCommand, Unit>
             activeStage.Status = StageStatus.Completed;
             activeStage.CompletedAt = DateTime.UtcNow;
             activeStage.ActualDurationSeconds = (int)(DateTime.UtcNow - activeStage.StartedAt!.Value).TotalSeconds;
+
+            // Auto-trigger StageEnd questions for the stage being auto-completed
+            var stageEndQuestions = await context.Questions
+                .Where(q => q.MeetingId == request.MeetingId
+                         && q.TriggerType == QuestionTriggerType.StageEnd
+                         && q.AssociatedStageId == activeStage.Id
+                         && q.Status == QuestionStatus.Draft)
+                .ToListAsync(cancellationToken);
+
+            foreach (var q in stageEndQuestions)
+            {
+                q.Status = QuestionStatus.Active;
+                q.TriggeredAt = DateTime.UtcNow;
+            }
         }
 
         // Start the new stage
@@ -52,6 +66,20 @@ public class StartStageHandler : IRequestHandler<StartStageCommand, Unit>
 
         stage.Status = StageStatus.Active;
         stage.StartedAt = DateTime.UtcNow;
+
+        // Auto-trigger StageStart questions for the new stage
+        var stageStartQuestions = await context.Questions
+            .Where(q => q.MeetingId == request.MeetingId
+                     && q.TriggerType == QuestionTriggerType.StageStart
+                     && q.AssociatedStageId == request.StageId
+                     && q.Status == QuestionStatus.Draft)
+            .ToListAsync(cancellationToken);
+
+        foreach (var q in stageStartQuestions)
+        {
+            q.Status = QuestionStatus.Active;
+            q.TriggeredAt = DateTime.UtcNow;
+        }
 
         await context.SaveChangesAsync(cancellationToken);
         

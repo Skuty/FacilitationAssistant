@@ -45,6 +45,20 @@ public class EndStageHandler : IRequestHandler<EndStageCommand, Unit>
         stage.CompletedAt = DateTime.UtcNow;
         stage.ActualDurationSeconds = (int)(DateTime.UtcNow - stage.StartedAt!.Value).TotalSeconds;
 
+        // Auto-trigger StageEnd questions for the ending stage
+        var stageEndQuestions = await context.Questions
+            .Where(q => q.MeetingId == request.MeetingId
+                     && q.TriggerType == QuestionTriggerType.StageEnd
+                     && q.AssociatedStageId == request.StageId
+                     && q.Status == QuestionStatus.Draft)
+            .ToListAsync(cancellationToken);
+
+        foreach (var q in stageEndQuestions)
+        {
+            q.Status = QuestionStatus.Active;
+            q.TriggeredAt = DateTime.UtcNow;
+        }
+
         await context.SaveChangesAsync(cancellationToken);
         
         // Notify all clients
