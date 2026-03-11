@@ -4,6 +4,7 @@
 @using Mediator
 @inject IMediator Mediator
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Facilitation Assistant</PageTitle>
 
@@ -99,7 +100,12 @@
         {
             var command = new CreateMeetingCommand(meetingTitle);
             var result = await Mediator.Send(command);
-            
+
+            // Save to local meeting history (role: facilitator)
+            var title = string.IsNullOrWhiteSpace(meetingTitle) ? "New Meeting" : meetingTitle.Trim();
+            await JSRuntime.InvokeVoidAsync("meetingHistory.addEntry",
+                result.MeetingId.ToString(), title, DateTime.UtcNow.ToString("O"), "facilitator", result.FacilitatorToken);
+
             // Navigate to meeting links confirmation page
             Navigation.NavigateTo($"/meeting-links/{result.FacilitatorToken}/{result.AttendeeToken}");
         }

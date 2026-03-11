@@ -1200,6 +1200,15 @@ else
     // Message management
     private MessageManager? messageManager;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && meeting != null)
+        {
+            await JSRuntime.InvokeVoidAsync("meetingHistory.addEntry",
+                meeting.Id.ToString(), meeting.Title, meeting.CreatedAt.ToString("O"), "facilitator", Token);
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadMeeting();

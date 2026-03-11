@@ -1,10 +1,12 @@
 @page "/profile"
 @rendermode InteractiveServer
 @inject IJSRuntime JSRuntime
+@using System.Text.Json
+@using System.Text.Json.Serialization
 
 <PageTitle>Profile</PageTitle>
 
-<div class="container" style="max-width: 600px; margin-top: 2rem;">
+<div class="container" style="max-width: 700px; margin-top: 2rem;">
     <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="mb-0">👤 Profile</h4>
@@ -54,14 +56,90 @@
             </div>
         </div>
     </div>
+
+    <!-- Meeting History -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📋 Meeting History</h5>
+            @if (meetingHistory.Count > 0)
+            {
+                <button class="btn btn-outline-danger btn-sm" @onclick="ClearHistory" disabled="@isLoading">
+                    🗑️ Clear history
+                </button>
+            }
+        </div>
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="p-3 text-muted">Loading...</div>
+            }
+            else if (meetingHistory.Count == 0)
+            {
+                <div class="p-4 text-center text-muted">
+                    <p class="mb-1">No meetings in history yet.</p>
+                    <small>Meetings you create or attend will appear here.</small>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Title</th>
+                                <th>Date</th>
+                                <th>Role</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in meetingHistory)
+                            {
+                                <tr>
+                                    <td class="align-middle">@(string.IsNullOrWhiteSpace(entry.Title) ? "(Untitled)" : entry.Title)</td>
+                                    <td class="align-middle text-nowrap">
+                                        <span title="@entry.CreatedAt">@FormatDate(entry.CreatedAt)</span>
+                                    </td>
+                                    <td class="align-middle">
+                                        @if (entry.Role == "facilitator")
+                                        {
+                                            <span class="badge bg-primary">🎯 Facilitator</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">👥 Attendee</span>
+                                        }
+                                    </td>
+                                    <td class="align-middle text-end">
+                                        <a href="@GetMeetingUrl(entry)" class="btn btn-outline-secondary btn-sm">
+                                            Open →
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
 </div>
 
 @code {
+    private record MeetingHistoryEntry(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("createdAt")] string CreatedAt,
+        [property: JsonPropertyName("role")] string Role,
+        [property: JsonPropertyName("token")] string Token
+    );
+
     private string nameInput = string.Empty;
     private string validationError = string.Empty;
     private bool showSuccess = false;
     private bool isLoading = true;
     private bool hasSavedName = false;
+    private List<MeetingHistoryEntry> meetingHistory = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -73,8 +151,28 @@
                 nameInput = saved;
                 hasSavedName = true;
             }
+
+            await LoadHistory();
+
             isLoading = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task LoadHistory()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("eval",
+                "JSON.stringify(window.meetingHistory ? window.meetingHistory.getHistory() : [])");
+            if (!string.IsNullOrEmpty(json))
+            {
+                meetingHistory = JsonSerializer.Deserialize<List<MeetingHistoryEntry>>(json) ?? new();
+            }
+        }
+        catch
+        {
+            meetingHistory = new();
         }
     }
 
@@ -113,8 +211,31 @@
         StateHasChanged();
     }
 
+    private async Task ClearHistory()
+    {
+        await JSRuntime.InvokeVoidAsync("meetingHistory.clearHistory");
+        meetingHistory = new();
+        StateHasChanged();
+    }
+
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") await SaveName();
+    }
+
+    private string FormatDate(string isoDate)
+    {
+        if (DateTime.TryParse(isoDate, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+        {
+            return dt.ToLocalTime().ToString("dd MMM yyyy HH:mm");
+        }
+        return isoDate;
+    }
+
+    private string GetMeetingUrl(MeetingHistoryEntry entry)
+    {
+        return entry.Role == "facilitator"
+            ? $"/facilitator/{entry.Token}"
+            : $"/attendee/{entry.Token}";
     }
 }
