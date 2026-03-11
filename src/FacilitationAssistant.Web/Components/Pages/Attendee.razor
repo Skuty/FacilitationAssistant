@@ -1013,10 +1013,10 @@ else
         
         await _hubConnection.StartAsync();
         
-        // Join meeting group
+        // Join meeting group and register presence
         if (meeting != null)
         {
-            await _hubConnection.InvokeAsync("JoinMeeting", meeting.Id.ToString());
+            await _hubConnection.InvokeAsync("JoinMeeting", meeting.Id.ToString(), sessionId);
         }
 
         // Start per-second tick if a stage is already active
@@ -1552,7 +1552,7 @@ else
     // Message management
     private AttendeeMessages? attendeeMessages;
 
-    private void SubmitName()
+    private async Task SubmitName()
     {
         var trimmed = nameInput.Trim();
         if (string.IsNullOrEmpty(trimmed))
@@ -1570,11 +1570,21 @@ else
         var suffix = Random.Shared.Next(1000, 10000);
         userIdentifier = $"{trimmed}-{suffix}";
         showNamePrompt = false;
+
+        // Push display name to server so facilitator sees it in participant list
+        if (meeting != null && _hubConnection != null)
+        {
+            try
+            {
+                await _hubConnection.InvokeAsync("UpdateDisplayName", meeting.Id.ToString(), sessionId, userIdentifier);
+            }
+            catch { /* Non-critical – display name update is best-effort */ }
+        }
     }
 
-    private void OnNameKeyDown(KeyboardEventArgs e)
+    private async Task OnNameKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter") SubmitName();
+        if (e.Key == "Enter") await SubmitName();
     }
 
     private string GetAttendeeNumber()
