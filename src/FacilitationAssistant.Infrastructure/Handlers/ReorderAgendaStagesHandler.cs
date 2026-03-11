@@ -1,7 +1,9 @@
 using FacilitationAssistant.Core.Commands;
 using FacilitationAssistant.Core.Entities;
 using FacilitationAssistant.Infrastructure.Data;
+using FacilitationAssistant.Infrastructure.Hubs;
 using Mediator;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacilitationAssistant.Infrastructure.Handlers;
@@ -12,10 +14,14 @@ namespace FacilitationAssistant.Infrastructure.Handlers;
 public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCommand, bool>
 {
     private readonly IDbContextFactory<FacilitationDbContext> _contextFactory;
+    private readonly IHubContext<MeetingHub> _hubContext;
 
-    public ReorderAgendaStagesHandler(IDbContextFactory<FacilitationDbContext> contextFactory)
+    public ReorderAgendaStagesHandler(
+        IDbContextFactory<FacilitationDbContext> contextFactory,
+        IHubContext<MeetingHub> hubContext)
     {
         _contextFactory = contextFactory;
+        _hubContext = hubContext;
     }
 
     public async ValueTask<bool> Handle(ReorderAgendaStagesCommand request, CancellationToken cancellationToken)
@@ -94,6 +100,11 @@ public class ReorderAgendaStagesHandler : IRequestHandler<ReorderAgendaStagesCom
         }
 
         await context.SaveChangesAsync(cancellationToken);
+
+        // Notify all connected clients so attendees see the updated stage order
+        await _hubContext.Clients.Group(request.MeetingId.ToString())
+            .SendAsync("MeetingUpdated", "stages_reordered", cancellationToken);
+
         return true;
     }
 }
