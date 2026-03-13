@@ -22,9 +22,11 @@ public class MeetingHub : Hub
     }
 
     /// <summary>
-    /// Called by attendees when they join a meeting. Creates or reconnects an AttendeeSession
-    /// in the database and notifies all group members (including the facilitator) so the
-    /// participant list is refreshed in real-time.
+    /// Called by clients when they join a meeting. Adds the connection to the SignalR group
+    /// so they receive real-time updates. When a <paramref name="sessionId"/> is provided
+    /// (attendees), an <see cref="AttendeeSession"/> is also created or reconnected in the
+    /// database and all group members are notified so the participant list refreshes.
+    /// Facilitators join without a <paramref name="sessionId"/> and are not tracked as attendees.
     /// </summary>
     public async Task JoinMeeting(string meetingId, string? sessionId = null)
     {
