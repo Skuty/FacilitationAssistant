@@ -1252,13 +1252,7 @@ else
             else
                 StopTickTimer();
 
-            // Voice reminder: meeting just started with no active stage → prompt to begin first stage
-            if (updateType == "started" &&
-                meeting?.Status == MeetingStatus.Active &&
-                meeting.Stages.All(s => s.Status == StageStatus.NotStarted))
-            {
-                await JSRuntime.InvokeVoidAsync("voiceHelper.speak", "Meeting has started. Please begin the first stage.");
-            }
+
             
             await InvokeAsync(StateHasChanged);
         });
@@ -1510,15 +1504,11 @@ else
         await Mediator.Send(new EndStageCommand(meeting.Id, stageId));
         await LoadMeeting();
 
-        // Voice reminder: announce the stage has ended
-        await JSRuntime.InvokeVoidAsync("voiceHelper.cancel");
-        await JSRuntime.InvokeVoidAsync("voiceHelper.speak", $"{stageName} has ended.");
-
         // Voice reminder: if no stage is now active, prompt the facilitator to start the next one
         if (meeting?.Status == MeetingStatus.Active &&
             meeting.Stages.All(s => s.Status != StageStatus.Active))
         {
-            await JSRuntime.InvokeVoidAsync("voiceHelper.speak", "No stage is currently active. Please start the next stage.");
+            await JSRuntime.InvokeVoidAsync("voiceHelper.speak", "Start next stage.");
         }
     }
 

@@ -23,12 +23,24 @@ window.voiceHelper = {
         }
     },
 
+    // Pick a female voice if available, otherwise fall back to any male voice
+    getFemaleVoice: function () {
+        const voices = window.speechSynthesis.getVoices();
+        return voices.find(v => /female/i.test(v.name))
+            || voices.find(v => /zira|samantha|victoria|karen|moira|fiona|tessa|susan/i.test(v.name))
+            || voices.find(v => /male/i.test(v.name))
+            || voices[0]
+            || null;
+    },
+
     // Queue a speech utterance (queues behind any already-speaking utterance)
     speak: function (text, rate) {
         if (!window.speechSynthesis) return;
         if (!this.isSoundEnabled()) return;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = (typeof rate === 'number') ? rate : 1.0;
+        const femaleVoice = this.getFemaleVoice();
+        if (femaleVoice) utterance.voice = femaleVoice;
         window.speechSynthesis.speak(utterance);
     }
 };
