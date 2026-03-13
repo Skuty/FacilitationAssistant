@@ -203,6 +203,7 @@ public static class SqlServerModelConfiguration
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.Text).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.AuthorName).HasMaxLength(50);
 
             entity.HasIndex(e => e.MeetingId);
 
