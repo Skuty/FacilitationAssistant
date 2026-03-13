@@ -1268,7 +1268,7 @@ else
         // Join meeting group
         if (meeting != null)
         {
-            await _hubConnection.InvokeAsync("JoinMeeting", meeting.Id.ToString());
+            await _hubConnection.InvokeAsync("JoinMeeting", meeting.Id.ToString(), string.Empty);
         }
 
         // Start per-second tick if a stage is already active

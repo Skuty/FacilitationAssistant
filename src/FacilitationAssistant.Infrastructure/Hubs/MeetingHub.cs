@@ -26,42 +26,45 @@ public class MeetingHub : Hub
     /// in the database and notifies all group members (including the facilitator) so the
     /// participant list is refreshed in real-time.
     /// </summary>
-    public async Task JoinMeeting(string meetingId, string sessionId)
+    public async Task JoinMeeting(string meetingId, string? sessionId = null)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, meetingId);
 
-        _connectionMap[Context.ConnectionId] = (meetingId, sessionId);
-
-        if (Guid.TryParse(meetingId, out var meetingGuid))
+        if (!string.IsNullOrEmpty(sessionId))
         {
-            await using var context = await _contextFactory.CreateDbContextAsync();
+            _connectionMap[Context.ConnectionId] = (meetingId, sessionId);
 
-            var existing = await context.AttendeeSessions
-                .FirstOrDefaultAsync(s => s.MeetingId == meetingGuid && s.SessionId == sessionId);
-
-            if (existing == null)
+            if (Guid.TryParse(meetingId, out var meetingGuid))
             {
-                context.AttendeeSessions.Add(new AttendeeSession
+                await using var context = await _contextFactory.CreateDbContextAsync();
+
+                var existing = await context.AttendeeSessions
+                    .FirstOrDefaultAsync(s => s.MeetingId == meetingGuid && s.SessionId == sessionId);
+
+                if (existing == null)
                 {
-                    Id = Guid.NewGuid(),
-                    MeetingId = meetingGuid,
-                    SessionId = sessionId,
-                    JoinedAt = DateTime.UtcNow,
-                    LastSeenAt = DateTime.UtcNow,
-                    IsConnected = true
-                });
-            }
-            else
-            {
-                existing.IsConnected = true;
-                existing.LastSeenAt = DateTime.UtcNow;
+                    context.AttendeeSessions.Add(new AttendeeSession
+                    {
+                        Id = Guid.NewGuid(),
+                        MeetingId = meetingGuid,
+                        SessionId = sessionId,
+                        JoinedAt = DateTime.UtcNow,
+                        LastSeenAt = DateTime.UtcNow,
+                        IsConnected = true
+                    });
+                }
+                else
+                {
+                    existing.IsConnected = true;
+                    existing.LastSeenAt = DateTime.UtcNow;
+                }
+
+                await context.SaveChangesAsync();
             }
 
-            await context.SaveChangesAsync();
+            // Notify all clients in the group (facilitator reloads participant list)
+            await Clients.Group(meetingId).SendAsync("MeetingUpdated", "attendee_joined");
         }
-
-        // Notify all clients in the group (facilitator reloads participant list)
-        await Clients.Group(meetingId).SendAsync("MeetingUpdated", "attendee_joined");
     }
 
     /// <summary>
