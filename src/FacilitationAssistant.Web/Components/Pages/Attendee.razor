@@ -970,9 +970,10 @@ else
             if (showNamePrompt)
             {
                 var saved = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "author_name");
-                if (!string.IsNullOrEmpty(saved))
+                if (!string.IsNullOrWhiteSpace(saved) && saved.Trim().Length >= 2)
                 {
-                    nameInput = saved;
+                    nameInput = saved.Trim();
+                    await SubmitName();
                     StateHasChanged();
                 }
             }

@@ -1206,6 +1206,14 @@ else
         {
             await JSRuntime.InvokeVoidAsync("meetingHistory.addEntry",
                 meeting.Id.ToString(), meeting.Title, meeting.CreatedAt.ToString("O"), "facilitator", Token);
+
+            var savedName = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "author_name");
+            if (!string.IsNullOrWhiteSpace(savedName) && savedName.Trim().Length >= 2)
+            {
+                nameInput = savedName.Trim();
+                SubmitName();
+                StateHasChanged();
+            }
         }
     }
 
