@@ -1131,6 +1131,7 @@ else
     private Meeting? meeting;
     private HubConnection? _hubConnection;
     private CancellationTokenSource? _tickCts;
+    private readonly HashSet<string> _firedSignals = new();
     private bool showLinksPanel = false;
     private bool showEndMeetingDialog = false;
     private bool showSettings = false;
@@ -1620,7 +1621,7 @@ else
             try
             {
                 while (await timer.WaitForNextTickAsync(cts.Token))
-                    await InvokeAsync(StateHasChanged);
+                    await InvokeAsync(async () => { await CheckStageTimeSignals(); StateHasChanged(); });
             }
             catch (OperationCanceledException) { }
         });
@@ -1631,6 +1632,23 @@ else
         _tickCts?.Cancel();
         _tickCts?.Dispose();
         _tickCts = null;
+    }
+
+    private async Task CheckStageTimeSignals()
+    {
+        var activeStage = meeting?.Stages?.FirstOrDefault(s => s.Status == StageStatus.Active);
+        if (activeStage?.StartedAt == null) return;
+
+        var elapsed = (DateTime.UtcNow - activeStage.StartedAt.Value).TotalMinutes;
+        var planned = activeStage.PlannedDurationMinutes;
+        var remainingPct = ((planned - elapsed) / planned) * 100.0;
+
+        if (remainingPct <= 10 && _firedSignals.Add(activeStage.Id + "_10"))
+            await JSRuntime.InvokeVoidAsync("voiceHelper.playDotSignal", 1);
+        if (remainingPct <= 5 && _firedSignals.Add(activeStage.Id + "_5"))
+            await JSRuntime.InvokeVoidAsync("voiceHelper.playDotSignal", 2);
+        if (remainingPct <= 0 && _firedSignals.Add(activeStage.Id + "_0"))
+            await JSRuntime.InvokeVoidAsync("voiceHelper.playDotSignal", 3);
     }
 
     private string GetElapsedTime()
